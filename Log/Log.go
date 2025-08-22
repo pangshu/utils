@@ -8,59 +8,59 @@ import (
 	"time"
 )
 
-func NewLogger(opts ...Option) (*RotateLog, error) {
-	r := &RotateLog{
-		mutex: &sync.Mutex{},
-		close: make(chan struct{}, 1),
-	}
-	for _, opt := range opts {
-		opt(r)
-	}
+//func NewLogger(opts ...Option) (*RotateLog, error) {
+//	r := &RotateLog{
+//		mutex: &sync.Mutex{},
+//		close: make(chan struct{}, 1),
+//	}
+//	for _, opt := range opts {
+//		opt(r)
+//	}
+//
+//	if err := os.Mkdir(filepath.Dir(r.FilePath), 0755); err != nil && !os.IsExist(err) {
+//		return nil, err
+//	}
+//
+//	if err := r.rotateFile(time.Now()); err != nil {
+//		return nil, err
+//	}
+//
+//	if r.RotateTime != 0 {
+//		go r.handleEvent()
+//	}
+//
+//	return r, nil
+//}
 
-	if err := os.Mkdir(filepath.Dir(r.FilePath), 0755); err != nil && !os.IsExist(err) {
-		return nil, err
-	}
-
-	if err := r.rotateFile(time.Now()); err != nil {
-		return nil, err
-	}
-
-	if r.RotateTime != 0 {
-		go r.handleEvent()
-	}
-
-	return r, nil
-}
-
-func (r *RotateLog) rotateFile(now time.Time) error {
-	if r.RotateTime != 0 {
-		nextRotateTime := r.nextRotateTime(now, r.RotateTime)
-		r.rotate = time.After(nextRotateTime)
-	}
-
-	latestLogPath := r.FilePath + r.FileName + r.getLatestLogPath(now)
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-	file, err := os.OpenFile(latestLogPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		return err
-	}
-	if r.file != nil {
-		r.file.Close()
-	}
-	r.file = file
-
-	if len(r.curLogLinkpath) > 0 {
-		os.Remove(r.curLogLinkpath)
-		os.Link(latestLogPath, r.curLogLinkpath)
-	}
-
-	if r.maxAge > 0 && len(r.deleteFileWildcard) > 0 { // at present
-		go r.deleteExpiredFile(now)
-	}
-
-	return nil
-}
+//func (r *RotateLog) rotateFile(now time.Time) error {
+//	if r.RotateTime != 0 {
+//		nextRotateTime := r.nextRotateTime(now, r.RotateTime)
+//		r.rotate = time.After(nextRotateTime)
+//	}
+//
+//	latestLogPath := r.FilePath + r.FileName + r.getLatestLogPath(now)
+//	r.mutex.Lock()
+//	defer r.mutex.Unlock()
+//	file, err := os.OpenFile(latestLogPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+//	if err != nil {
+//		return err
+//	}
+//	if r.file != nil {
+//		r.file.Close()
+//	}
+//	r.file = file
+//
+//	if len(r.curLogLinkpath) > 0 {
+//		os.Remove(r.curLogLinkpath)
+//		os.Link(latestLogPath, r.curLogLinkpath)
+//	}
+//
+//	if r.maxAge > 0 && len(r.deleteFileWildcard) > 0 { // at present
+//		go r.deleteExpiredFile(now)
+//	}
+//
+//	return nil
+//}
 
 func (l *Logger) Write(b []byte) (n int, err error) {
 	l.mu.Lock()
@@ -98,31 +98,25 @@ func (r *RotateLog) Close() error {
 	return r.file.Close()
 }
 
-func (r *RotateLog) handleEvent() {
-	for {
-		select {
-		case <-r.close:
-			return
-		case now := <-r.rotate:
-			r.rotateFile(now)
-		}
-	}
-}
+//func (r *RotateLog) handleEvent() {
+//	for {
+//		select {
+//		case <-r.close:
+//			return
+//		case now := <-r.rotate:
+//			r.rotateFile(now)
+//		}
+//	}
+//}
 
-func (r *RotateLog) nextRotateTime(now time.Time, duration time.Duration) time.Duration {
-	nowUnixNao := now.UnixNano()
-	NanoSecond := duration.Nanoseconds()
-	nextRotateTime := NanoSecond - (nowUnixNao % NanoSecond)
-	return time.Duration(nextRotateTime)
-}
+//	func (r *RotateLog) nextRotateTime(now time.Time, duration time.Duration) time.Duration {
+//	   nowUnixNao := now.UnixNano()
+//	   NanoSecond := duration.Nanoseconds()
+//	   nextRotateTime := NanoSecond - (nowUnixNao % NanoSecond)
+//	   return time.Duration(nextRotateTime)
+//	}
 func (r *RotateLog) getLatestLogPath(t time.Time) string {
 	return t.Format(r.FilePath)
-}
-func (r *RotateLog) max() int64 {
-	if r.RotateSize == 0 {
-		return int64(defaultMaxSize * megabyte)
-	}
-	return int64(r.RotateSize) * int64(megabyte)
 }
 
 func (l *Logger) openExistingOrNew(writeLen int) error {
@@ -173,15 +167,15 @@ func (r *RotateLog) createFile() error {
 	return r.openFile(name, mode)
 }
 
-func (r *RotateLog) openFile(name string, mode os.FileMode) error {
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
-	if err != nil {
-		return fmt.Errorf("can't open new logfile: %s", err)
-	}
-	r.file = f
-	r.size = 0
-	return nil
-}
+//func (r *RotateLog) openFile(name string, mode os.FileMode) error {
+//	f, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+//	if err != nil {
+//		return fmt.Errorf("can't open new logfile: %s", err)
+//	}
+//	r.file = f
+//	r.size = 0
+//	return nil
+//}
 
 // 获取文件名
 func (r *RotateLog) filename() string {
@@ -193,18 +187,4 @@ func (r *RotateLog) filename() string {
 }
 func (r *RotateLog) dir() string {
 	return filepath.Dir(r.filename())
-}
-
-func (r *RotateLog) backupName(name string, local bool) string {
-	dir := filepath.Dir(name)
-	filename := filepath.Base(name)
-	ext := filepath.Ext(filename)
-	prefix := filename[:len(filename)-len(ext)]
-	t := currentTime()
-	if !local {
-		t = t.UTC()
-	}
-
-	timestamp := t.Format(backupTimeFormat)
-	return filepath.Join(dir, fmt.Sprintf("%s-%s%s", prefix, timestamp, ext))
 }
