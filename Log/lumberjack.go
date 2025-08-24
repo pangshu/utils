@@ -614,29 +614,29 @@ func compressLogFile(src, dst string) (err error) {
 	return nil
 }
 
-// logInfo is a convenience struct to return the filename and its embedded
-// timestamp.
-
-// logInfo是一个方便的结构，用于返回文件名及其嵌入的
-// 时间戳。
-type logInfo struct {
-	timestamp time.Time
-	os.FileInfo
-}
-
-// byFormatTime sorts by newest time formatted in the name.
-
-// byFormatTime按名称中格式化的最新时间排序。
-type byFormatTime []logInfo
-
-func (b byFormatTime) Less(i, j int) bool {
-	return b[i].timestamp.After(b[j].timestamp)
-}
-
-func (b byFormatTime) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-func (b byFormatTime) Len() int {
-	return len(b)
-}
+//// logInfo is a convenience struct to return the filename and its embedded
+//// timestamp.
+//
+//// logInfo是一个方便的结构，用于返回文件名及其嵌入的
+//// 时间戳。
+//type logInfo struct {
+//	timestamp time.Time
+//	os.FileInfo
+//}
+//
+//// byFormatTime sorts by newest time formatted in the name.
+//
+//// byFormatTime按名称中格式化的最新时间排序。
+//type byFormatTime []logInfo
+//
+//func (b byFormatTime) Less(i, j int) bool {
+//	return b[i].timestamp.After(b[j].timestamp)
+//}
+//
+//func (b byFormatTime) Swap(i, j int) {
+//	b[i], b[j] = b[j], b[i]
+//}
+//
+//func (b byFormatTime) Len() int {
+//	return len(b)
+//}

@@ -93,11 +93,6 @@ func (l *Logger) Write(b []byte) (n int, err error) {
 	return n, err
 }
 
-func (r *RotateLog) Close() error {
-	r.close <- struct{}{}
-	return r.file.Close()
-}
-
 //func (r *RotateLog) handleEvent() {
 //	for {
 //		select {
