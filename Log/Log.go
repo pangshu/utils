@@ -12,6 +12,8 @@ import (
 )
 
 //https://www.cnblogs.com/jiujuan/p/17304844.html
+//NewTee，考虑多层次输出日志选项
+
 //
 //type Option func(*LogConfig)
 //type LogConfig struct {
