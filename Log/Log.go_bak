@@ -1,0 +1,137 @@
+package Log
+
+import (
+	"bytes"
+	"os"
+	"path"
+	"time"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+)
+
+//https://www.cnblogs.com/jiujuan/p/17304844.html
+//NewTee，考虑多层次输出日志选项
+
+//
+//type Option func(*LogConfig)
+//type LogConfig struct {
+//	Path    string `yaml:"path"`
+//	Name    string `yaml:"name"`
+//	Level   string `yaml:"level"`
+//	MaxSize int    `yaml:"max_size"`
+//	MaxAge  int    `yaml:"max_age"`
+//
+//	Stacktrace string `yaml:"stacktrace"`
+//	Stdout     bool   `yaml:"stdout"`
+//}
+
+var instance *zap.Logger
+
+// Instance 唯一实例
+func (*Log) Instance() *zap.Logger {
+	return instance
+}
+
+// Init 初始化,生成的日志文件夹名字
+func (toolLog *Log) Init(conf LogConfig) *zap.Logger {
+	instance = toolLog.NewLogger(func(o *LogConfig) {
+		o.Path = conf.Path
+		o.Name = conf.Name
+		o.Level = conf.Level
+		o.MaxSize = conf.MaxSize
+		o.MaxAge = conf.MaxAge
+		o.Stacktrace = conf.Stacktrace
+		o.Stdout = conf.Stdout
+	})
+	return instance
+}
+
+// NewLogger 新建日志
+func (*Log) NewLogger(opts ...Option) *zap.Logger {
+	o := &LogConfig{
+		Path:       "./log/",
+		Name:       "output",
+		Level:      "debug",
+		MaxSize:    100,
+		MaxAge:     7,
+		Stacktrace: "error",
+		Stdout:     true,
+	}
+	for _, opt := range opts {
+		opt(o)
+	}
+	writers := []zapcore.WriteSyncer{newRollingFile(o.Path, o.Name, o.MaxSize, o.MaxAge)}
+	if o.Stdout == true {
+		writers = append(writers, os.Stdout)
+	}
+	logger := newZapLogger(getLevel(o.Level), getLevel(o.Stacktrace), zapcore.NewMultiWriteSyncer(writers...))
+	zap.RedirectStdLog(logger)
+
+	return logger
+}
+
+func getLevel(level string) zapcore.Level {
+	switch level {
+	case "debug":
+		return zapcore.DebugLevel
+	case "info":
+		return zapcore.InfoLevel
+	case "warn":
+		return zapcore.WarnLevel
+	case "error":
+		return zapcore.ErrorLevel
+	case "dpanic":
+		return zapcore.DPanicLevel
+	case "panic":
+		return zapcore.PanicLevel
+	case "fatal":
+		return zapcore.FatalLevel
+	default:
+		return zapcore.ErrorLevel
+	}
+}
+
+// 创建分割日志的writer
+func newRollingFile(logPath, logName string, maxSize, maxAge int) zapcore.WriteSyncer {
+	if err := os.MkdirAll(logPath, 0766); err != nil {
+		panic(err)
+		return nil
+	}
+
+	return newLumberjackWriteSyncer(&lumberjack.Logger{
+		Filename:  path.Join(logPath, logName+".log"),
+		MaxSize:   maxSize, //megabytes
+		MaxAge:    maxAge,  //days
+		LocalTime: true,
+		Compress:  false,
+	})
+}
+
+func newZapLogger(level, stacktrace zapcore.Level, output zapcore.WriteSyncer) *zap.Logger {
+	encCfg := zapcore.EncoderConfig{
+		TimeKey:        "@timestamp",
+		LevelKey:       "level",
+		NameKey:        "app",
+		CallerKey:      "caller",
+		MessageKey:     "msg",
+		StacktraceKey:  "stacktrace",
+		LineEnding:     zapcore.DefaultLineEnding,
+		EncodeCaller:   zapcore.ShortCallerEncoder,
+		EncodeDuration: zapcore.NanosDurationEncoder,
+		//EncodeTime: func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+		//	enc.AppendString(t.Format("2006-01-02 15:04:05.000"))
+		//},
+		EncodeTime: zapcore.ISO8601TimeEncoder,
+	}
+
+	var encoder zapcore.Encoder
+	dyn := zap.NewAtomicLevel()
+	//encCfg.EncodeLevel = zapcore.LowercaseLevelEncoder
+	//encoder = zapcore.NewJSONEncoder(encCfg) // zapcore.NewConsoleEncoder(encCfg)
+	dyn.SetLevel(level)
+	encCfg.EncodeLevel = zapcore.LowercaseLevelEncoder
+	encoder = zapcore.NewJSONEncoder(encCfg)
+
+	return zap.New(zapcore.NewCore(encoder, output, dyn), zap.AddCaller(), zap.AddStacktrace(stacktrace), zap.AddCallerSkip(2))
+}
