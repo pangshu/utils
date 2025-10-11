@@ -103,3 +103,5 @@ func Panic(msg string, fields ...Field) { std.Panic(msg, fields...) }
 func Fatal(msg string, fields ...Field) { std.Fatal(msg, fields...) }
 
 func Sync() error { return std.Sync() }
+
+func getEncoder() zapcore.EncoderConfig {}

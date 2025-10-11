@@ -153,7 +153,7 @@ func (r *RotateLog) rotateFile() error {
 			return dirErr
 		}
 
-		file, err := os.OpenFile(r.FilePath+"/"+r.FileName+defaultSuffix, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		file, err := os.OpenFile(r.FilePath+"/"+r.AppName+defaultSuffix, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			return err
 		}
@@ -170,7 +170,7 @@ func (r *RotateLog) rotateFile() error {
 			return dirErr
 		}
 
-		info, err := osStat(r.FilePath + "/" + r.FileName + defaultSuffix)
+		info, err := osStat(r.FilePath + "/" + r.AppName + defaultSuffix)
 		if err == nil {
 			bakName := r.backupName(r.LocalTime)
 			if renameErr := os.Rename(info.Name(), bakName); renameErr != nil {
@@ -178,7 +178,7 @@ func (r *RotateLog) rotateFile() error {
 			}
 		}
 
-		file, err := os.OpenFile(r.FilePath+"/"+r.FileName+defaultSuffix, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		file, err := os.OpenFile(r.FilePath+"/"+r.AppName+defaultSuffix, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			return err
 		}
@@ -197,7 +197,7 @@ func (r *RotateLog) deleteExpiredFile() error {
 		return nil
 	}
 	// 文件列表
-	matches, err := filepath.Glob(filepath.Join(r.FilePath, r.FileName, "-*"))
+	matches, err := filepath.Glob(filepath.Join(r.FilePath, r.AppName, "-*"))
 	if err != nil {
 		return err
 	}
@@ -314,7 +314,7 @@ func (r *RotateLog) backupName(local bool) string {
 	}
 
 	timestamp := t.Format(backupTimeFormat)
-	return filepath.Join(r.FilePath, fmt.Sprintf("%s-%s%s", r.FileName, timestamp, defaultSuffix))
+	return filepath.Join(r.FilePath, fmt.Sprintf("%s-%s%s", r.AppName, timestamp, defaultSuffix))
 }
 
 type sortFile struct {
