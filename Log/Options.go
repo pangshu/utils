@@ -1,6 +1,7 @@
 package Log
 
 import (
+	"go.uber.org/zap"
 	"os"
 	"strings"
 	"sync"
@@ -50,10 +51,14 @@ type RotateLog struct {
 	close          chan struct{} // close file and write goroutine
 }
 
+type EncoderConfig struct {
+}
+
 var (
-	currentTime = time.Now
-	osStat      = os.Stat
-	megabyte    = 1024 * 1024
+	defaultEncoderConfig = zap.NewProductionEncoderConfig()
+	currentTime          = time.Now
+	osStat               = os.Stat
+	megabyte             = 1024 * 1024
 )
 
 const (
@@ -183,28 +188,27 @@ func WithBackupTimeFormat(tpl string) Option {
 
 // 配置EncoderConfig各项值
 
-func WithMessageKey(v string) Option {
-	return func(r *RotateLog) {
-		r.MessageKey = v
-	}
+func WithMessageKey(v string) zapcore.EncoderConfig {
+	defaultEncoderConfig.MessageKey = v
+	return defaultEncoderConfig
 }
 
-func WithLevelKey(v string) Option {
+func WithLevelKey(v string) zapcore.EncoderConfig {
 	return func(r *RotateLog) {
 		r.LevelKey = v
 	}
 }
-func WithTimeKey(v string) Option {
+func WithTimeKey(v string) zapcore.EncoderConfig {
 	return func(r *RotateLog) {
 		r.TimeKey = v
 	}
 }
-func WithNameKey(v string) Option {
+func WithNameKey(v string) zapcore.EncoderConfig {
 	return func(r *RotateLog) {
 		r.NameKey = v
 	}
 }
-func WithCallerKey(v string) Option {
+func WithCallerKey(v string) zapcore.EncoderConfig {
 	return func(r *RotateLog) {
 		r.CallerKey = v
 	}
