@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func NewRotate(opts ...Option) (*RotateLog, error) {
+func NewRotate(opts ...func(*RotateLog)) (*RotateLog, error) {
 	r := &RotateLog{
 		mutex: &sync.Mutex{},
 		close: make(chan struct{}, 1),
@@ -98,7 +98,7 @@ func (r *RotateLog) handleEvent() {
 
 func (r *RotateLog) timeRotateFile(timeChan time.Time) error {
 	if r.RotateTime != 0 {
-		nextTime := r.nextRotateTime(timeChan, r.RotateTime)
+		nextTime := r.nextRotateTime(timeChan, time.Duration(r.RotateTime))
 		r.rotateTimeChan = time.After(nextTime)
 	}
 	r.mutex.Lock()
@@ -227,7 +227,7 @@ func (r *RotateLog) deleteExpiredFile() error {
 
 	// 删除超过最大保存天数的文件
 	if r.MaxAge > 0 {
-		expiredTime := time.Now().Add(-r.MaxAge)
+		expiredTime := time.Now().Add(-time.Duration(r.MaxAge))
 		for fileIndex, file := range files {
 			if file.timestamp.IsZero() {
 				continue

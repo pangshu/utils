@@ -16,7 +16,7 @@ type TeeOption struct {
 
 // NewTee 根据日志级别写入多个输出
 // https://pkg.go.dev/go.uber.org/zap#example-package-AdvancedConfiguration
-func NewTee(tees []TeeOption, opts ...ZapOption) *Logger {
+func NewTee(tees []TeeOption, opts ...ZapOption) *Log {
 	var cores []zapcore.Core
 	for _, tee := range tees {
 		cfg := zap.NewProductionEncoderConfig()
@@ -28,5 +28,5 @@ func NewTee(tees []TeeOption, opts ...ZapOption) *Logger {
 		)
 		cores = append(cores, core)
 	}
-	return &Logger{l: zap.New(zapcore.NewTee(cores...), opts...)}
+	return &Log{l: zap.New(zapcore.NewTee(cores...), opts...)}
 }
