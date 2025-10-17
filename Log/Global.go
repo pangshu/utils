@@ -1,3 +1,3 @@
 package Log
 
-//type Log byte
+type Log byte

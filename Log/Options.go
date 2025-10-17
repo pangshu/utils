@@ -2,6 +2,7 @@ package Log
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"strconv"
@@ -9,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -46,6 +46,7 @@ type RotateLog struct {
 
 	EncoderConfig zapcore.EncoderConfig `json:"encoderConfig" yaml:"encoderConfig"`
 
+	stdout         io.Writer
 	level          zapcore.Level
 	file           *os.File
 	size           int64 // 内容长度
@@ -79,18 +80,19 @@ const (
 	all   = 1 << 2
 )
 
-//type Option func(*RotateLog)
+type Option func(*RotateLog)
 
 // 设置默认值
-func (l *Log) DefaultOptions() func(*RotateLog) {
-	// TODO 后续完善
-	return func(r *RotateLog) {
-		l.SetDefaults(r)
-		r.EncoderConfig = zap.NewProductionEncoderConfig()
-	}
-}
+//func (l *Log) DefaultOptions() func(*RotateLog) {
+//	// TODO 后续完善
+//	return func(r *RotateLog) {
+//		l.SetDefaults(r)
+//		r.EncoderConfig = zap.NewProductionEncoderConfig()
+//	}
+//}
 
-func (l *Log) WithLevel(level string) func(*RotateLog) {
+func (l *Log) WithLevel(level string) Option {
+
 	fmt.Println("++++++>>>>>>++++++")
 	return func(r *RotateLog) {
 		fmt.Println("++++++++++++")
@@ -117,7 +119,7 @@ func (l *Log) WithLevel(level string) func(*RotateLog) {
 
 }
 
-func (l *Log) WithType(typeValue string) func(*RotateLog) {
+func (l *Log) WithType(typeValue string) Option {
 	return func(r *RotateLog) {
 		switch strings.ToLower(typeValue) {
 		case "all":
@@ -132,7 +134,7 @@ func (l *Log) WithType(typeValue string) func(*RotateLog) {
 	}
 }
 
-func (l *Log) WithTypeByInt(typeValue int) func(*RotateLog) {
+func (l *Log) WithTypeByInt(typeValue int) Option {
 	return func(r *RotateLog) {
 		switch typeValue {
 		case 0:
@@ -147,49 +149,49 @@ func (l *Log) WithTypeByInt(typeValue int) func(*RotateLog) {
 	}
 }
 
-func (l *Log) WithRotateTime(duration int) func(*RotateLog) {
+func (l *Log) WithRotateTime(duration int) Option {
 	return func(r *RotateLog) {
 		r.RotateTime = duration
 	}
 }
 
-func (l *Log) WithRotateSize(size int) func(*RotateLog) {
+func (l *Log) WithRotateSize(size int) Option {
 	return func(r *RotateLog) {
 		r.RotateSize = size
 	}
 }
 
-func (l *Log) WithMaxBackups(max int) func(*RotateLog) {
+func (l *Log) WithMaxBackups(max int) Option {
 	return func(r *RotateLog) {
 		r.MaxBackups = max
 	}
 }
 
-func (l *Log) WithMaxSize(size int) func(*RotateLog) {
+func (l *Log) WithMaxSize(size int) Option {
 	return func(r *RotateLog) {
 		r.MaxSize = size
 	}
 }
 
-func (l *Log) WithMaxAge(duration int) func(*RotateLog) {
+func (l *Log) WithMaxAge(duration int) Option {
 	return func(r *RotateLog) {
 		r.MaxAge = duration
 	}
 }
 
-func (l *Log) WithLocalTime(localTime bool) func(*RotateLog) {
+func (l *Log) WithLocalTime(localTime bool) Option {
 	return func(r *RotateLog) {
 		r.LocalTime = localTime
 	}
 }
 
-func (l *Log) WithCompress(compress bool) func(*RotateLog) {
+func (l *Log) WithCompress(compress bool) Option {
 	return func(r *RotateLog) {
 		r.Compress = compress
 	}
 }
 
-func (l *Log) WithBackupTimeFormat(tpl string) func(*RotateLog) {
+func (l *Log) WithBackupTimeFormat(tpl string) Option {
 	return func(r *RotateLog) {
 		r.BackupTimeFormat = tpl
 	}
@@ -197,48 +199,48 @@ func (l *Log) WithBackupTimeFormat(tpl string) func(*RotateLog) {
 
 // 配置EncoderConfig各项值
 
-func (l *Log) WithMessageKey(v string) func(*RotateLog) {
+func (l *Log) WithMessageKey(v string) Option {
 	return func(r *RotateLog) {
 		r.EncoderConfig.MessageKey = v
 	}
 }
 
-func (l *Log) WithLevelKey(v string) func(*RotateLog) {
+func (l *Log) WithLevelKey(v string) Option {
 	return func(r *RotateLog) {
 		r.EncoderConfig.LevelKey = v
 	}
 }
-func (l *Log) WithTimeKey(v string) func(*RotateLog) {
+func (l *Log) WithTimeKey(v string) Option {
 	return func(r *RotateLog) {
 		r.EncoderConfig.TimeKey = v
 	}
 }
-func (l *Log) WithNameKey(v string) func(*RotateLog) {
+func (l *Log) WithNameKey(v string) Option {
 	return func(r *RotateLog) {
 		r.EncoderConfig.NameKey = v
 	}
 }
-func (l *Log) WithCallerKey(v string) func(*RotateLog) {
+func (l *Log) WithCallerKey(v string) Option {
 	return func(r *RotateLog) {
 		r.EncoderConfig.CallerKey = v
 	}
 }
-func (l *Log) WithFunctionKey(v string) func(*RotateLog) {
+func (l *Log) WithFunctionKey(v string) Option {
 	return func(r *RotateLog) {
 		r.EncoderConfig.FunctionKey = v
 	}
 }
-func (l *Log) WithStacktraceKey(v string) func(*RotateLog) {
+func (l *Log) WithStacktraceKey(v string) Option {
 	return func(r *RotateLog) {
 		r.EncoderConfig.StacktraceKey = v
 	}
 }
-func (l *Log) WithSkipLineEnding(v bool) func(*RotateLog) {
+func (l *Log) WithSkipLineEnding(v bool) Option {
 	return func(r *RotateLog) {
 		r.EncoderConfig.SkipLineEnding = v
 	}
 }
-func (l *Log) WithLineEnding(v string) func(*RotateLog) {
+func (l *Log) WithLineEnding(v string) Option {
 	return func(r *RotateLog) {
 		if len(v) > 0 {
 			r.EncoderConfig.LineEnding = v
@@ -248,13 +250,13 @@ func (l *Log) WithLineEnding(v string) func(*RotateLog) {
 	}
 }
 
-func (l *Log) WithConsoleSeparator(v string) func(*RotateLog) {
+func (l *Log) WithConsoleSeparator(v string) Option {
 	return func(r *RotateLog) {
 		r.EncoderConfig.ConsoleSeparator = v
 	}
 }
 
-func (l *Log) WithEncodeLevel(level string) func(*RotateLog) {
+func (l *Log) WithEncodeLevel(level string) Option {
 	return func(r *RotateLog) {
 		switch strings.ToLower(level) {
 		case strings.ToLower("LowercaseLevelEncoder"), strings.ToLower("Lowercase"):
@@ -271,7 +273,7 @@ func (l *Log) WithEncodeLevel(level string) func(*RotateLog) {
 	}
 }
 
-func (l *Log) WithEncodeTime(level string, layout ...string) func(*RotateLog) {
+func (l *Log) WithEncodeTime(level string, layout ...string) Option {
 	return func(r *RotateLog) {
 		if strings.ToLower(level) == "time" {
 			if len(layout) == 0 {
@@ -300,7 +302,7 @@ func (l *Log) WithEncodeTime(level string, layout ...string) func(*RotateLog) {
 	}
 }
 
-func (l *Log) WithEncodeDuration(level string) func(*RotateLog) {
+func (l *Log) WithEncodeDuration(level string) Option {
 	return func(r *RotateLog) {
 		switch strings.ToLower(level) {
 		case strings.ToLower("SecondsDurationEncoder"), strings.ToLower("Second"):
@@ -317,7 +319,7 @@ func (l *Log) WithEncodeDuration(level string) func(*RotateLog) {
 	}
 }
 
-func (l *Log) WithEncodeCaller(level string) func(*RotateLog) {
+func (l *Log) WithEncodeCaller(level string) Option {
 	return func(r *RotateLog) {
 		switch strings.ToLower(level) {
 		case strings.ToLower("FullCallerEncoder"), strings.ToLower("Full"):
@@ -330,13 +332,26 @@ func (l *Log) WithEncodeCaller(level string) func(*RotateLog) {
 	}
 }
 
-func (l *Log) WithEncodeName(level string) func(*RotateLog) {
+func (l *Log) WithEncodeName(level string) Option {
 	return func(r *RotateLog) {
 		switch strings.ToLower(level) {
 		case strings.ToLower("Full"):
 			r.EncoderConfig.EncodeName = zapcore.FullNameEncoder
 		default:
 			r.EncoderConfig.EncodeName = zapcore.FullNameEncoder
+		}
+	}
+}
+
+func (l *Log) WithStdout(typeValue bool) Option {
+	return func(r *RotateLog) {
+		switch typeValue {
+		case true:
+			r.stdout = os.Stdout
+		case false:
+			r.stdout = os.Stderr
+		default:
+			r.stdout = os.Stdout
 		}
 	}
 }

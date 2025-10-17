@@ -27,13 +27,13 @@ var (
 	WithClock     = zap.WithClock
 )
 
-type Log struct {
+type Logger struct {
 	l *zap.Logger
 	// https://pkg.go.dev/go.uber.org/zap#example-AtomicLevel
 	al *zap.AtomicLevel
 }
 
-func (l *Log) New(conf *RotateLog, opts ...func(*RotateLog)) *Log {
+func (l *Log) New(conf *RotateLog, opts ...Option) *Logger {
 	fmt.Println("=== 开始初始化测试 === ")
 	cfg := l.initConfig(conf, opts...)
 	fmt.Println(string(cfg.AppName))
@@ -61,13 +61,13 @@ func (l *Log) New(conf *RotateLog, opts ...func(*RotateLog)) *Log {
 	fmt.Println(">>>>>>>>>>")
 	fmt.Println(cfg.level)
 
-	//al := zap.NewAtomicLevelAt(level)
-	//core := zapcore.NewCore(
-	//	zapcore.NewJSONEncoder(cfg),
-	//	zapcore.AddSync(out),
-	//	al,
-	//)
-	//
+	al := zap.NewAtomicLevelAt(cfg.level)
+	core := zapcore.NewCore(
+		zapcore.NewJSONEncoder(cfg.EncoderConfig),
+		zapcore.AddSync(cfg.stdout),
+		al,
+	)
+	return &Logger{l: zap.New(core)}
 	//var encoder zapcore.Encoder
 	//dyn := zap.NewAtomicLevel()
 	////encCfg.EncodeLevel = zapcore.LowercaseLevelEncoder
@@ -78,14 +78,15 @@ func (l *Log) New(conf *RotateLog, opts ...func(*RotateLog)) *Log {
 	//
 	//return zap.New(zapcore.NewCore(encoder, output, dyn), zap.AddCaller(), zap.AddStacktrace(stacktrace), zap.AddCallerSkip(2))
 	//return &Log{l: zap.New()}
-	return &Log{}
+
 }
 
 // 初始化配置文件
-func (l *Log) initConfig(cfg *RotateLog, opts ...func(*RotateLog)) *RotateLog {
+func (l *Log) initConfig(cfg *RotateLog, opts ...Option) *RotateLog {
 	if cfg == nil {
 		cfg = l.getDefaultOptions()
-		l.WithLevel(cfg.Level)
+		opts = append(opts, l.WithLevel(cfg.Level))
+		opts = append(opts, l.WithStdout(cfg.Stdout))
 	}
 	if len(opts) > 0 {
 		for _, opt := range opts {
