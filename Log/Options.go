@@ -1,7 +1,6 @@
 package Log
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"reflect"
@@ -10,41 +9,46 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-type RotateLog struct {
-	FilePath         string `json:"filePath" yaml:"filePath" default:"./log/"`                                    // 日志文件路径
-	AppName          string `json:"appName" yaml:"appName" default:"app"`                                         // 日志文件名
-	Level            string `json:"level" yaml:"level" default:"all"`                                             // 日志级别，默认为all
-	Type             string `json:"type" yaml:"type" default:"all"`                                               // 日志类型，默认为all, all 表示所有 daily 表示按天 size 表示按大小
-	RotateTime       int    `json:"rotateTime" yaml:"rotateTime" default:"86400"`                                 // 日志文件切割时间, 单位:秒
-	RotateSize       int    `json:"rotateSize" yaml:"rotateSize" default:"100"`                                   // 日志文件切割大小, 单位:MB
-	MaxBackups       int    `json:"maxBackups" yaml:"maxBackups" default:"100"`                                   // 日志文件保存数量
-	MaxSize          int    `json:"maxSize" yaml:"maxSize" default:"1024"`                                        // 日志文件保存最大值, 单位:MB
-	MaxAge           int    `json:"maxAge" yaml:"maxAge" default:"31536000"`                                      // 日志文件保存时间
-	LocalTime        bool   `json:"localTime" yaml:"localTime" default:"true"`                                    // 是否使用本地时间
-	Compress         bool   `json:"compress" yaml:"compress" default:"false"`                                     // 日志文件是否压缩
-	Stdout           bool   `json:"stdout" yaml:"stdout" default:"true"`                                          // 是否输出到控制台
-	BackupTimeFormat string `json:"backupTimeFormat" yaml:"backupTimeFormat" default:"2006-01-02T15:04:05Z07:00"` // 日志文件保存时间格式
-	// zapcore.EncoderConfig配置项，默认不需要配置
-	MessageKey       string `json:"messageKey" yaml:"messageKey"` // 输入信息的key名
-	LevelKey         string `json:"levelKey" yaml:"levelKey"`     // 输出日志级别的key名
-	TimeKey          string `json:"timeKey" yaml:"timeKey"`       // 输出时间的key名
-	NameKey          string `json:"nameKey" yaml:"nameKey"`
-	CallerKey        string `json:"callerKey" yaml:"callerKey"`         //输出调用者的key名
-	FunctionKey      string `json:"functionKey" yaml:"functionKey"`     //输出函数的key名
-	StacktraceKey    string `json:"stacktraceKey" yaml:"stacktraceKey"` // 输出栈信息的key名
-	SkipLineEnding   string `json:"skipLineEnding" yaml:"skipLineEnding"`
-	LineEnding       string `json:"lineEnding" yaml:"lineEnding"`           // 每行的分隔符。基本zapcore.DefaultLineEnding 即"\n"
-	EncodeLevel      string `json:"levelEncoder" yaml:"levelEncoder"`       // 基本zapcore.LowercaseLevelEncoder。将日志级别字符串转化为小写
-	EncodeTime       string `json:"timeEncoder" yaml:"timeEncoder"`         // 输出的时间格式
-	EncodeDuration   string `json:"durationEncoder" yaml:"durationEncoder"` //一般zapcore.SecondsDurationEncoder,执行消耗时间转化成浮点型的秒
-	EncodeCaller     string `json:"callerEncoder" yaml:"callerEncoder"`     //一般zapcore.ShortCallerEncoder，以包/文件:行号 格式化调用堆栈
-	EncodeName       string `json:"nameEncoder" yaml:"nameEncoder"`
-	ConsoleSeparator string `json:"consoleSeparator" yaml:"consoleSeparator"`
+type Level = zapcore.Level
+type Field = zap.Field
+type Option = zap.Option
+type EncoderConfig = zapcore.EncoderConfig
 
-	EncoderConfig zapcore.EncoderConfig `json:"encoderConfig" yaml:"encoderConfig"`
+var (
+	WrapCore      = zap.WrapCore
+	Hooks         = zap.Hooks
+	Fields        = zap.Fields
+	ErrorOutput   = zap.ErrorOutput
+	Development   = zap.Development
+	AddCaller     = zap.AddCaller
+	WithCaller    = zap.WithCaller
+	AddCallerSkip = zap.AddCallerSkip
+	AddStacktrace = zap.AddStacktrace
+	IncreaseLevel = zap.IncreaseLevel
+	WithPanicHook = zap.WithPanicHook
+	WithFatalHook = zap.WithFatalHook
+	WithClock     = zap.WithClock
+)
+
+type RotateConfig struct {
+	FilePath         string        `json:"filePath" yaml:"filePath" default:"./log/"`                                    // 日志文件路径
+	AppName          string        `json:"appName" yaml:"appName" default:"app"`                                         // 日志文件名
+	Level            string        `json:"level" yaml:"level" default:"all"`                                             // 日志级别，默认为all
+	Type             string        `json:"type" yaml:"type" default:"all"`                                               // 日志类型，默认为all, all 表示所有 daily 表示按天 size 表示按大小
+	RotateTime       int           `json:"rotateTime" yaml:"rotateTime" default:"86400"`                                 // 日志文件切割时间, 单位:秒
+	RotateSize       int           `json:"rotateSize" yaml:"rotateSize" default:"100"`                                   // 日志文件切割大小, 单位:MB
+	MaxBackups       int           `json:"maxBackups" yaml:"maxBackups" default:"100"`                                   // 日志文件保存数量
+	MaxSize          int           `json:"maxSize" yaml:"maxSize" default:"1024"`                                        // 日志文件保存最大值, 单位:MB
+	MaxAge           int           `json:"maxAge" yaml:"maxAge" default:"31536000"`                                      // 日志文件保存时间
+	LocalTime        bool          `json:"localTime" yaml:"localTime" default:"true"`                                    // 是否使用本地时间
+	Compress         bool          `json:"compress" yaml:"compress" default:"false"`                                     // 日志文件是否压缩
+	Stdout           bool          `json:"stdout" yaml:"stdout" default:"true"`                                          // 是否输出到控制台
+	BackupTimeFormat string        `json:"backupTimeFormat" yaml:"backupTimeFormat" default:"2006-01-02T15:04:05Z07:00"` // 日志文件保存时间格式
+	EncoderConfig    EncoderConfig `json:"encoderConfig" yaml:"encoderConfig"`
 
 	stdout         io.Writer
 	level          zapcore.Level
@@ -57,21 +61,19 @@ type RotateLog struct {
 	close          chan struct{} // close file and write goroutine
 }
 
-type EncoderConfig struct {
-}
-
 var (
 	currentTime = time.Now
 	osStat      = os.Stat
 	megabyte    = 1024 * 1024
 )
 
-const (
-	backupTimeFormat = "2006-01-02T15:04:05Z07:00"
+var (
+	backupTimeFormat = "2006-01-02T15-04-05.000"
 	compressSuffix   = ".gz"
 	defaultSuffix    = ".log"
 	defaultMaxSize   = 100
 	defaultRole      = all
+	//defaultEncoderConfig = zap.NewProductionEncoderConfig()
 )
 
 const (
@@ -80,23 +82,41 @@ const (
 	all   = 1 << 2
 )
 
-type Option func(*RotateLog)
+type RotateOption func(*RotateConfig)
 
-// 设置默认值
-//func (l *Log) DefaultOptions() func(*RotateLog) {
-//	// TODO 后续完善
-//	return func(r *RotateLog) {
-//		l.SetDefaults(r)
-//		r.EncoderConfig = zap.NewProductionEncoderConfig()
-//	}
-//}
+// Init 初始化配置
+func Init(cfg *RotateConfig, opts ...RotateOption) *RotateConfig {
+	if cfg == nil {
+		cfg = DefaultRotateOptions()
+	} else {
+		if cfg.EncoderConfig.MessageKey == "" {
+			cfg.EncoderConfig = zap.NewProductionEncoderConfig()
+			cfg.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
+		}
+	}
+	//fmt.Println("====", cfg.Stdout)
+	//if cfg.Stdout == true {
+	//	cfg.stdout = os.Stdout
+	//} else {
+	//	cfg.stdout = os.Stderr
+	//}
+	for _, opt := range opts {
+		opt(cfg)
+	}
 
-func (l *Log) WithLevel(level string) Option {
+	return cfg
+}
 
-	fmt.Println("++++++>>>>>>++++++")
-	return func(r *RotateLog) {
-		fmt.Println("++++++++++++")
-		fmt.Println("level:", level)
+// DefaultRotateOptions 读取默认配置
+func DefaultRotateOptions() *RotateConfig {
+	var cfg RotateConfig
+	SetDefaults(&cfg)
+	cfg.EncoderConfig = zap.NewProductionEncoderConfig()
+	return &cfg
+}
+
+func WithLevel(level string) RotateOption {
+	return func(r *RotateConfig) {
 		switch level {
 		case "debug":
 			r.level = zapcore.DebugLevel
@@ -119,8 +139,8 @@ func (l *Log) WithLevel(level string) Option {
 
 }
 
-func (l *Log) WithType(typeValue string) Option {
-	return func(r *RotateLog) {
+func WithType(typeValue string) RotateOption {
+	return func(r *RotateConfig) {
 		switch strings.ToLower(typeValue) {
 		case "all":
 			r.role = all
@@ -134,8 +154,8 @@ func (l *Log) WithType(typeValue string) Option {
 	}
 }
 
-func (l *Log) WithTypeByInt(typeValue int) Option {
-	return func(r *RotateLog) {
+func WithTypeByInt(typeValue int) RotateOption {
+	return func(r *RotateConfig) {
 		switch typeValue {
 		case 0:
 			r.role = all
@@ -149,99 +169,99 @@ func (l *Log) WithTypeByInt(typeValue int) Option {
 	}
 }
 
-func (l *Log) WithRotateTime(duration int) Option {
-	return func(r *RotateLog) {
+func WithRotateTime(duration int) RotateOption {
+	return func(r *RotateConfig) {
 		r.RotateTime = duration
 	}
 }
 
-func (l *Log) WithRotateSize(size int) Option {
-	return func(r *RotateLog) {
+func WithRotateSize(size int) RotateOption {
+	return func(r *RotateConfig) {
 		r.RotateSize = size
 	}
 }
 
-func (l *Log) WithMaxBackups(max int) Option {
-	return func(r *RotateLog) {
+func WithMaxBackups(max int) RotateOption {
+	return func(r *RotateConfig) {
 		r.MaxBackups = max
 	}
 }
 
-func (l *Log) WithMaxSize(size int) Option {
-	return func(r *RotateLog) {
+func WithMaxSize(size int) RotateOption {
+	return func(r *RotateConfig) {
 		r.MaxSize = size
 	}
 }
 
-func (l *Log) WithMaxAge(duration int) Option {
-	return func(r *RotateLog) {
+func WithMaxAge(duration int) RotateOption {
+	return func(r *RotateConfig) {
 		r.MaxAge = duration
 	}
 }
 
-func (l *Log) WithLocalTime(localTime bool) Option {
-	return func(r *RotateLog) {
+func WithLocalTime(localTime bool) RotateOption {
+	return func(r *RotateConfig) {
 		r.LocalTime = localTime
 	}
 }
 
-func (l *Log) WithCompress(compress bool) Option {
-	return func(r *RotateLog) {
+func WithCompress(compress bool) RotateOption {
+	return func(r *RotateConfig) {
 		r.Compress = compress
 	}
 }
 
-func (l *Log) WithBackupTimeFormat(tpl string) Option {
-	return func(r *RotateLog) {
+func WithBackupTimeFormat(tpl string) RotateOption {
+	return func(r *RotateConfig) {
 		r.BackupTimeFormat = tpl
 	}
 }
 
 // 配置EncoderConfig各项值
 
-func (l *Log) WithMessageKey(v string) Option {
-	return func(r *RotateLog) {
+func WithMessageKey(v string) RotateOption {
+	return func(r *RotateConfig) {
 		r.EncoderConfig.MessageKey = v
 	}
 }
 
-func (l *Log) WithLevelKey(v string) Option {
-	return func(r *RotateLog) {
+func WithLevelKey(v string) RotateOption {
+	return func(r *RotateConfig) {
 		r.EncoderConfig.LevelKey = v
 	}
 }
-func (l *Log) WithTimeKey(v string) Option {
-	return func(r *RotateLog) {
+func WithTimeKey(v string) RotateOption {
+	return func(r *RotateConfig) {
 		r.EncoderConfig.TimeKey = v
 	}
 }
-func (l *Log) WithNameKey(v string) Option {
-	return func(r *RotateLog) {
+func WithNameKey(v string) RotateOption {
+	return func(r *RotateConfig) {
 		r.EncoderConfig.NameKey = v
 	}
 }
-func (l *Log) WithCallerKey(v string) Option {
-	return func(r *RotateLog) {
+func WithCallerKey(v string) RotateOption {
+	return func(r *RotateConfig) {
 		r.EncoderConfig.CallerKey = v
 	}
 }
-func (l *Log) WithFunctionKey(v string) Option {
-	return func(r *RotateLog) {
+func WithFunctionKey(v string) RotateOption {
+	return func(r *RotateConfig) {
 		r.EncoderConfig.FunctionKey = v
 	}
 }
-func (l *Log) WithStacktraceKey(v string) Option {
-	return func(r *RotateLog) {
+func WithStacktraceKey(v string) RotateOption {
+	return func(r *RotateConfig) {
 		r.EncoderConfig.StacktraceKey = v
 	}
 }
-func (l *Log) WithSkipLineEnding(v bool) Option {
-	return func(r *RotateLog) {
+func WithSkipLineEnding(v bool) RotateOption {
+	return func(r *RotateConfig) {
 		r.EncoderConfig.SkipLineEnding = v
 	}
 }
-func (l *Log) WithLineEnding(v string) Option {
-	return func(r *RotateLog) {
+func WithLineEnding(v string) RotateOption {
+	return func(r *RotateConfig) {
 		if len(v) > 0 {
 			r.EncoderConfig.LineEnding = v
 		} else {
@@ -250,14 +270,14 @@ func (l *Log) WithLineEnding(v string) Option {
 	}
 }
 
-func (l *Log) WithConsoleSeparator(v string) Option {
-	return func(r *RotateLog) {
+func WithConsoleSeparator(v string) RotateOption {
+	return func(r *RotateConfig) {
 		r.EncoderConfig.ConsoleSeparator = v
 	}
 }
 
-func (l *Log) WithEncodeLevel(level string) Option {
-	return func(r *RotateLog) {
+func WithEncodeLevel(level string) RotateOption {
+	return func(r *RotateConfig) {
 		switch strings.ToLower(level) {
 		case strings.ToLower("LowercaseLevelEncoder"), strings.ToLower("Lowercase"):
 			r.EncoderConfig.EncodeLevel = zapcore.LowercaseLevelEncoder
@@ -273,8 +293,8 @@ func (l *Log) WithEncodeLevel(level string) Option {
 	}
 }
 
-func (l *Log) WithEncodeTime(level string, layout ...string) Option {
-	return func(r *RotateLog) {
+func WithEncodeTime(level string, layout ...string) RotateOption {
+	return func(r *RotateConfig) {
 		if strings.ToLower(level) == "time" {
 			if len(layout) == 0 {
 				r.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
@@ -302,8 +322,8 @@ func (l *Log) WithEncodeTime(level string, layout ...string) Option {
 	}
 }
 
-func (l *Log) WithEncodeDuration(level string) Option {
-	return func(r *RotateLog) {
+func WithEncodeDuration(level string) RotateOption {
+	return func(r *RotateConfig) {
 		switch strings.ToLower(level) {
 		case strings.ToLower("SecondsDurationEncoder"), strings.ToLower("Second"):
 			r.EncoderConfig.EncodeDuration = zapcore.SecondsDurationEncoder
@@ -319,8 +339,8 @@ func (l *Log) WithEncodeDuration(level string) Option {
 	}
 }
 
-func (l *Log) WithEncodeCaller(level string) Option {
-	return func(r *RotateLog) {
+func WithEncodeCaller(level string) RotateOption {
+	return func(r *RotateConfig) {
 		switch strings.ToLower(level) {
 		case strings.ToLower("FullCallerEncoder"), strings.ToLower("Full"):
 			r.EncoderConfig.EncodeCaller = zapcore.FullCallerEncoder
@@ -332,8 +352,8 @@ func (l *Log) WithEncodeCaller(level string) Option {
 	}
 }
 
-func (l *Log) WithEncodeName(level string) Option {
-	return func(r *RotateLog) {
+func WithEncodeName(level string) RotateOption {
+	return func(r *RotateConfig) {
 		switch strings.ToLower(level) {
 		case strings.ToLower("Full"):
 			r.EncoderConfig.EncodeName = zapcore.FullNameEncoder
@@ -343,8 +363,8 @@ func (l *Log) WithEncodeName(level string) Option {
 	}
 }
 
-func (l *Log) WithStdout(typeValue bool) Option {
-	return func(r *RotateLog) {
+func WithStdout(typeValue bool) RotateOption {
+	return func(r *RotateConfig) {
 		switch typeValue {
 		case true:
 			r.stdout = os.Stdout
@@ -356,31 +376,7 @@ func (l *Log) WithStdout(typeValue bool) Option {
 	}
 }
 
-//
-//func setDefaults(p *RotateLog) {
-//	// Iterate over the fields of the Person struct using reflection
-//	// and set the default value for each field if the field is not provided
-//	// by the caller of the constructor function.
-//	for i := 0; i < reflect.TypeOf(*p).NumField(); i++ {
-//		field := reflect.TypeOf(*p).Field(i)
-//		if value, ok := field.Tag.Lookup("default"); ok {
-//			switch field.Type.Kind() {
-//			case reflect.String:
-//				if p.Name == "" {
-//					p.Name = value
-//				}
-//			case reflect.Int:
-//				if p.Age == 0 {
-//					if intValue, err := strconv.Atoi(value); err == nil {
-//						p.Age = intValue
-//					}
-//				}
-//			}
-//		}
-//	}
-//}
-
-func (l *Log) SetDefaults(cfg *RotateLog) {
+func SetDefaults(cfg *RotateConfig) {
 	v := reflect.ValueOf(cfg)
 
 	// 确保传入的是指针

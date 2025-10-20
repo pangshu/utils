@@ -1,4 +1,4 @@
-package Log
+package LogTest
 
 import "fmt"
 

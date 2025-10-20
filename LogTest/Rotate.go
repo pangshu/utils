@@ -1,4 +1,4 @@
-package Log
+package LogTest
 
 import (
 	"compress/gzip"
@@ -12,43 +12,27 @@ import (
 	"time"
 )
 
-func NewRotate(r *RotateConfig, opts ...RotateOption) (*RotateConfig, error) {
-	//r = &RotateConfig{
-	//	mutex: &sync.Mutex{},
-	//	close: make(chan struct{}, 1),
-	//	//logPath: logPath,
-	//}
-
-	r.mutex = &sync.Mutex{}
-	r.close = make(chan struct{}, 1)
-
+func NewRotate(opts ...func(*RotateLog)) (*RotateLog, error) {
+	r := &RotateLog{
+		mutex: &sync.Mutex{},
+		close: make(chan struct{}, 1),
+		//logPath: logPath,
+	}
 	for _, opt := range opts {
 		opt(r)
 	}
+
 	if err := r.rotateFile(); err != nil {
 		return nil, err
 	}
 	if r.RotateTime != 0 || r.RotateSize != 0 {
-		if r.RotateTime != 0 {
-			nextTime := r.nextRotateTime(time.Now(), time.Duration(r.RotateTime)*time.Second)
-			r.rotateTimeChan = time.After(nextTime)
-		}
-
-		//if r.RotateTime != 0 {
-		//	nextTime := r.nextRotateTime(time.Now(), time.Duration(r.RotateTime))
-		//	r.rotateTimeChan = time.After(nextTime)
-		//}
-		//fmt.Println("r.RotateTimer.RotateTimer.RotateTime")
-		//fmt.Println(r.rotateTimeChan)
-		//fmt.Println("r.RotateTimer.RotateTimer.RotateTime")
-		//r.handleEvent()
 		go r.handleEvent()
 	}
 
 	return r, nil
 }
 
-func (r *RotateConfig) Write(p []byte) (n int, err error) {
+func (r *RotateLog) Write(p []byte) (n int, err error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -59,11 +43,11 @@ func (r *RotateConfig) Write(p []byte) (n int, err error) {
 		)
 	}
 
-	//if r.file == nil || r.size+writeLen > r.max() {
-	//	if err := r.rotateFile(); err != nil {
-	//		return 0, err
-	//	}
-	//}
+	if r.file == nil || r.size+writeLen > r.max() {
+		if err := r.rotateFile(); err != nil {
+			return 0, err
+		}
+	}
 
 	n, err = r.file.Write(p)
 	r.size += int64(n)
@@ -71,7 +55,7 @@ func (r *RotateConfig) Write(p []byte) (n int, err error) {
 	return n, err
 }
 
-func (r *RotateConfig) Close() error {
+func (r *RotateLog) Close() error {
 	r.close <- struct{}{}
 	return r.file.Close()
 }
@@ -83,44 +67,38 @@ func (r *RotateConfig) Close() error {
 //	return int64(r.RotateSize) * int64(megabyte)
 //}
 
-func (r *RotateConfig) max() int64 {
+func (r *RotateLog) max() int64 {
 	if r.RotateSize == 0 {
 		return int64(defaultMaxSize * megabyte)
 	}
 	return int64(r.RotateSize) * int64(megabyte)
 }
 
-func (r *RotateConfig) hasRole(role int) bool {
+func (r *RotateLog) hasRole(role int) bool {
 	if r.role == 0 {
 		r.role = defaultRole
 	}
 	return (r.role & role) == role
 }
 
-func (r *RotateConfig) handleEvent() {
-	//fmt.Println("++++++|||1111||||+++++++")
+func (r *RotateLog) handleEvent() {
 	for {
-		//fmt.Println("++++++|||2222||||+++++++")
 		select {
 		case <-r.close:
-			//fmt.Println("++++++|||3333||||+++++++")
 			return
 		case timeChan := <-r.rotateTimeChan:
-			//fmt.Println("++++++|||||||+++++++")
 			_ = r.timeRotateFile(timeChan)
-			//case sizeChan := <-r.rotateSizeChan:
-			//	//fmt.Println("++++++|||3333||||+++++++")
-			//	_ = r.sizeRotateFile(sizeChan)
+		case sizeChan := <-r.rotateSizeChan:
+			_ = r.sizeRotateFile(sizeChan)
+		default:
+			return
 		}
 	}
 }
 
-func (r *RotateConfig) timeRotateFile(timeChan time.Time) error {
-	//fmt.Println("======timeRotateFile")
-	//fmt.Println(r.rotateTimeChan)
-	//fmt.Println("==========timeRotateFile")
+func (r *RotateLog) timeRotateFile(timeChan time.Time) error {
 	if r.RotateTime != 0 {
-		nextTime := r.nextRotateTime(timeChan, time.Duration(r.RotateTime)*time.Second)
+		nextTime := r.nextRotateTime(timeChan, time.Duration(r.RotateTime))
 		r.rotateTimeChan = time.After(nextTime)
 	}
 	r.mutex.Lock()
@@ -132,28 +110,27 @@ func (r *RotateConfig) timeRotateFile(timeChan time.Time) error {
 		return err
 	}
 
-	//go func() {
-	//	_ = r.deleteExpiredFile()
-	//}()
+	go func() {
+		_ = r.deleteExpiredFile()
+	}()
 
 	return nil
 }
 
-func (r *RotateConfig) nextRotateTime(now time.Time, duration time.Duration) time.Duration {
+func (r *RotateLog) nextRotateTime(now time.Time, duration time.Duration) time.Duration {
 	nowUnixNao := now.UnixNano()
 	NanoSecond := duration.Nanoseconds()
 	nextRotateTime := NanoSecond - (nowUnixNao % NanoSecond)
 	return time.Duration(nextRotateTime)
 }
 
-func (r *RotateConfig) sizeRotateFile(sizeChan bool) error {
+func (r *RotateLog) sizeRotateFile(sizeChan bool) error {
 	//select {
 	//case r.rotateSizeChan <- true:
 	//default:
 	//}
-
-	//r.mutex.Lock()
-	//defer r.mutex.Unlock()
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
 	//bakName := r.backupName(r.LocalTime)
 	err := r.rotateFile()
@@ -161,31 +138,22 @@ func (r *RotateConfig) sizeRotateFile(sizeChan bool) error {
 		return err
 	}
 
-	//go func() {
-	//	_ = r.deleteExpiredFile()
-	//}()
+	go func() {
+		_ = r.deleteExpiredFile()
+	}()
 
 	return nil
 }
 
-func (r *RotateConfig) rotateFile() error {
-	//if r.RotateTime != 0 {
-	//	nextTime := r.nextRotateTime(time.Now(), time.Duration(r.RotateTime))
-	//	r.rotateTimeChan = time.After(nextTime)
-	//}
-
+func (r *RotateLog) rotateFile() error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	pwd, _ := os.Getwd()
-	//fmt.Println(">>>>>>>>>>>>>>")
-	//fmt.Println(fmt.Sprintf("%s/%s", pwd, r.FilePath))
-	//fmt.Println(">>>>>>>>>>>>>>")
 	if r.file == nil {
-		if dirErr := os.MkdirAll(fmt.Sprintf("%s/%s", pwd, r.FilePath), 0755); dirErr != nil {
+		if dirErr := os.MkdirAll(r.FilePath, 0755); dirErr != nil {
 			return dirErr
 		}
 
-		file, err := os.OpenFile(fmt.Sprintf("%s%s%s", fmt.Sprintf("%s/%s", pwd, r.FilePath), r.AppName, defaultSuffix), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		file, err := os.OpenFile(r.FilePath+"/"+r.AppName+defaultSuffix, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			return err
 		}
@@ -193,55 +161,38 @@ func (r *RotateConfig) rotateFile() error {
 		r.size = 0
 		return nil
 	} else {
-		//_ = r.file.Close()
-		//closeErr := r.file.Close()
-		//if closeErr != nil {
-		//	return closeErr
-		//}
+		closeErr := r.file.Close()
+		if closeErr != nil {
+			return closeErr
+		}
 
-		if dirErr := os.MkdirAll(fmt.Sprintf("%s/%s", pwd, r.FilePath), 0755); dirErr != nil {
+		if dirErr := os.MkdirAll(r.FilePath, 0755); dirErr != nil {
 			return dirErr
 		}
 
-		info, err := osStat(fmt.Sprintf("%s/%s", pwd, r.FilePath) + "/" + r.AppName + defaultSuffix)
-		//fmt.Println("}}}}}}}}}}}}}}")
-		//fmt.Println(err)
+		info, err := osStat(r.FilePath + "/" + r.AppName + defaultSuffix)
 		if err == nil {
-			infoName := fmt.Sprintf("%s/%s", pwd, r.FilePath) + info.Name()
-
-			infoName, _ = filepath.Abs(infoName)
-			bakName := fmt.Sprintf("%s/%s", pwd, r.backupName(r.LocalTime))
-			bakName, _ = filepath.Abs(bakName)
-			//fmt.Println("ppppppppp")
-			//fmt.Println(info.Name())
-			//fmt.Println(bakName)
-			if renameErr := os.Rename(infoName, bakName); renameErr != nil {
-				fmt.Println(renameErr)
-				return fmt.Errorf("can't rename log file: %s", renameErr)
+			bakName := r.backupName(r.LocalTime)
+			if renameErr := os.Rename(info.Name(), bakName); renameErr != nil {
+				return fmt.Errorf("can't rename log file: %s", err)
 			}
 		}
 
-		file, err := os.OpenFile(fmt.Sprintf("%s/%s", pwd, r.FilePath)+"/"+r.AppName+defaultSuffix, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		file, err := os.OpenFile(r.FilePath+"/"+r.AppName+defaultSuffix, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			return err
-		}
-		if r.file != nil {
-			closeErr := r.file.Close()
-			if closeErr != nil {
-				return closeErr
-			}
 		}
 		r.file = file
 		r.size = 0
 	}
 
-	//go func() {
-	//	_ = r.deleteExpiredFile()
-	//}()
+	go func() {
+		_ = r.deleteExpiredFile()
+	}()
 
 	return nil
 }
-func (r *RotateConfig) deleteExpiredFile() error {
+func (r *RotateLog) deleteExpiredFile() error {
 	if r.MaxBackups == 0 && r.MaxAge == 0 && !r.Compress {
 		return nil
 	}
@@ -313,7 +264,7 @@ func (r *RotateConfig) deleteExpiredFile() error {
 }
 
 // 压缩文件
-func (r *RotateConfig) compressFile(src os.FileInfo, dst string) (err error) {
+func (r *RotateLog) compressFile(src os.FileInfo, dst string) (err error) {
 	f, err := os.Open(src.Name())
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %v", err)
@@ -356,7 +307,7 @@ func (r *RotateConfig) compressFile(src os.FileInfo, dst string) (err error) {
 	return nil
 }
 
-func (r *RotateConfig) backupName(local bool) string {
+func (r *RotateLog) backupName(local bool) string {
 	t := currentTime()
 	if !local {
 		t = t.UTC()
