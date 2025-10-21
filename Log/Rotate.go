@@ -13,12 +13,6 @@ import (
 )
 
 func NewRotate(r *RotateConfig, opts ...RotateOption) (*RotateConfig, error) {
-	//r = &RotateConfig{
-	//	mutex: &sync.Mutex{},
-	//	close: make(chan struct{}, 1),
-	//	//logPath: logPath,
-	//}
-
 	r.mutex = &sync.Mutex{}
 	r.close = make(chan struct{}, 1)
 
@@ -28,20 +22,19 @@ func NewRotate(r *RotateConfig, opts ...RotateOption) (*RotateConfig, error) {
 	if err := r.rotateFile(); err != nil {
 		return nil, err
 	}
-	if r.RotateTime != 0 || r.RotateSize != 0 {
-		if r.RotateTime != 0 {
-			nextTime := r.nextRotateTime(time.Now(), time.Duration(r.RotateTime)*time.Second)
-			r.rotateTimeChan = time.After(nextTime)
-		}
 
-		//if r.RotateTime != 0 {
-		//	nextTime := r.nextRotateTime(time.Now(), time.Duration(r.RotateTime))
-		//	r.rotateTimeChan = time.After(nextTime)
-		//}
-		//fmt.Println("r.RotateTimer.RotateTimer.RotateTime")
-		//fmt.Println(r.rotateTimeChan)
-		//fmt.Println("r.RotateTimer.RotateTimer.RotateTime")
-		//r.handleEvent()
+	if r.RotateTime != 0 {
+		nextTime := r.nextRotateTime(time.Now(), time.Duration(r.RotateTime)*time.Second)
+		r.rotateTimeChan = time.After(nextTime)
+	}
+
+	if r.RotateSize != 0 {
+		sizeChan := make(chan bool, 1)
+		sizeChan <- true
+		r.rotateSizeChan = sizeChan
+	}
+
+	if r.RotateTime != 0 || r.RotateSize != 0 {
 		go r.handleEvent()
 	}
 
@@ -58,13 +51,11 @@ func (r *RotateConfig) Write(p []byte) (n int, err error) {
 			"write length %d exceeds maximum file size %d", writeLen, r.max(),
 		)
 	}
-
-	//if r.file == nil || r.size+writeLen > r.max() {
-	//	if err := r.rotateFile(); err != nil {
-	//		return 0, err
-	//	}
-	//}
-
+	if r.file == nil || r.size+writeLen > r.max() {
+		if rotateErr := r.rotateFile(); rotateErr != nil {
+			return 0, rotateErr
+		}
+	}
 	n, err = r.file.Write(p)
 	r.size += int64(n)
 
@@ -98,27 +89,19 @@ func (r *RotateConfig) hasRole(role int) bool {
 }
 
 func (r *RotateConfig) handleEvent() {
-	//fmt.Println("++++++|||1111||||+++++++")
 	for {
-		//fmt.Println("++++++|||2222||||+++++++")
 		select {
 		case <-r.close:
-			//fmt.Println("++++++|||3333||||+++++++")
 			return
-		case timeChan := <-r.rotateTimeChan:
-			//fmt.Println("++++++|||||||+++++++")
-			_ = r.timeRotateFile(timeChan)
-			//case sizeChan := <-r.rotateSizeChan:
-			//	//fmt.Println("++++++|||3333||||+++++++")
-			//	_ = r.sizeRotateFile(sizeChan)
+		//case timeChan := <-r.rotateTimeChan:
+		//	_ = r.timeRotateFile(timeChan)
+		case sizeChan := <-r.rotateSizeChan:
+			_ = r.sizeRotateFile(sizeChan)
 		}
 	}
 }
 
 func (r *RotateConfig) timeRotateFile(timeChan time.Time) error {
-	//fmt.Println("======timeRotateFile")
-	//fmt.Println(r.rotateTimeChan)
-	//fmt.Println("==========timeRotateFile")
 	if r.RotateTime != 0 {
 		nextTime := r.nextRotateTime(timeChan, time.Duration(r.RotateTime)*time.Second)
 		r.rotateTimeChan = time.After(nextTime)
@@ -132,9 +115,9 @@ func (r *RotateConfig) timeRotateFile(timeChan time.Time) error {
 		return err
 	}
 
-	//go func() {
-	//	_ = r.deleteExpiredFile()
-	//}()
+	go func() {
+		_ = r.deleteExpiredFile()
+	}()
 
 	return nil
 }
@@ -147,45 +130,34 @@ func (r *RotateConfig) nextRotateTime(now time.Time, duration time.Duration) tim
 }
 
 func (r *RotateConfig) sizeRotateFile(sizeChan bool) error {
-	//select {
-	//case r.rotateSizeChan <- true:
-	//default:
+	//if sizeChanStatus == true {
+	//	sizeChan := make(chan bool, 1)
+	//	sizeChan <- true
+	//	r.rotateSizeChan = sizeChan
 	//}
 
-	//r.mutex.Lock()
-	//defer r.mutex.Unlock()
-
-	//bakName := r.backupName(r.LocalTime)
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	err := r.rotateFile()
 	if err != nil {
 		return err
 	}
 
-	//go func() {
-	//	_ = r.deleteExpiredFile()
-	//}()
+	go func() {
+		_ = r.deleteExpiredFile()
+	}()
 
 	return nil
 }
 
 func (r *RotateConfig) rotateFile() error {
-	//if r.RotateTime != 0 {
-	//	nextTime := r.nextRotateTime(time.Now(), time.Duration(r.RotateTime))
-	//	r.rotateTimeChan = time.After(nextTime)
-	//}
-
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-	pwd, _ := os.Getwd()
-	//fmt.Println(">>>>>>>>>>>>>>")
-	//fmt.Println(fmt.Sprintf("%s/%s", pwd, r.FilePath))
-	//fmt.Println(">>>>>>>>>>>>>>")
+	//pwd, _ := os.Getwd()
 	if r.file == nil {
-		if dirErr := os.MkdirAll(fmt.Sprintf("%s/%s", pwd, r.FilePath), 0755); dirErr != nil {
+		if dirErr := os.MkdirAll(r.absFilePath(r.FilePath), 0755); dirErr != nil {
 			return dirErr
 		}
 
-		file, err := os.OpenFile(fmt.Sprintf("%s%s%s", fmt.Sprintf("%s/%s", pwd, r.FilePath), r.AppName, defaultSuffix), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		file, err := os.OpenFile(r.absFilePath(r.FilePath, r.AppName+defaultSuffix), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			return err
 		}
@@ -194,42 +166,26 @@ func (r *RotateConfig) rotateFile() error {
 		return nil
 	} else {
 		//_ = r.file.Close()
-		//closeErr := r.file.Close()
-		//if closeErr != nil {
-		//	return closeErr
-		//}
-
-		if dirErr := os.MkdirAll(fmt.Sprintf("%s/%s", pwd, r.FilePath), 0755); dirErr != nil {
-			return dirErr
+		closeErr := r.file.Close()
+		if closeErr != nil {
+			return closeErr
 		}
 
-		info, err := osStat(fmt.Sprintf("%s/%s", pwd, r.FilePath) + "/" + r.AppName + defaultSuffix)
-		//fmt.Println("}}}}}}}}}}}}}}")
-		//fmt.Println(err)
+		if dirErr := os.MkdirAll(r.absFilePath(r.FilePath), 0755); dirErr != nil {
+			return dirErr
+		}
+		info, err := osStat(r.absFilePath(r.FilePath, r.AppName+defaultSuffix))
 		if err == nil {
-			infoName := fmt.Sprintf("%s/%s", pwd, r.FilePath) + info.Name()
-
-			infoName, _ = filepath.Abs(infoName)
-			bakName := fmt.Sprintf("%s/%s", pwd, r.backupName(r.LocalTime))
-			bakName, _ = filepath.Abs(bakName)
-			//fmt.Println("ppppppppp")
-			//fmt.Println(info.Name())
-			//fmt.Println(bakName)
+			infoName := r.absFilePath(r.FilePath, info.Name())
+			bakName := r.absFilePath(r.FilePath, r.backupName(r.LocalTime))
 			if renameErr := os.Rename(infoName, bakName); renameErr != nil {
-				fmt.Println(renameErr)
 				return fmt.Errorf("can't rename log file: %s", renameErr)
 			}
 		}
 
-		file, err := os.OpenFile(fmt.Sprintf("%s/%s", pwd, r.FilePath)+"/"+r.AppName+defaultSuffix, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		file, err := os.OpenFile(r.absFilePath(r.FilePath, r.AppName+defaultSuffix), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			return err
-		}
-		if r.file != nil {
-			closeErr := r.file.Close()
-			if closeErr != nil {
-				return closeErr
-			}
 		}
 		r.file = file
 		r.size = 0
@@ -246,10 +202,11 @@ func (r *RotateConfig) deleteExpiredFile() error {
 		return nil
 	}
 	// 文件列表
-	matches, err := filepath.Glob(filepath.Join(r.FilePath, r.AppName, "-*"))
+	matches, err := filepath.Glob(r.absFilePath(filepath.Join(r.FilePath, r.AppName+"-*")))
 	if err != nil {
 		return err
 	}
+
 	var files []sortFile
 	for _, path := range matches {
 		fileInfo, fileErr := os.Stat(path)
@@ -264,35 +221,38 @@ func (r *RotateConfig) deleteExpiredFile() error {
 	// 删除超过备份数量的文件
 	if r.MaxBackups > 0 && r.MaxBackups < len(files) {
 		for fileIndex, file := range files {
-			removeErr := os.Remove(file.Name())
-			if removeErr != nil {
-				return removeErr
-			} else {
-				files[fileIndex].timestamp = time.Time{}
-				files[fileIndex].FileInfo = nil
+			if fileIndex >= r.MaxBackups {
+				removeErr := os.Remove(r.absFilePath(r.FilePath, file.Name()))
+				if removeErr != nil {
+					return removeErr
+				} else {
+					files[fileIndex].timestamp = time.Time{}
+					files[fileIndex].FileInfo = nil
+				}
 			}
+
 		}
 	}
 
-	// 删除超过最大保存天数的文件
-	if r.MaxAge > 0 {
-		expiredTime := time.Now().Add(-time.Duration(r.MaxAge))
-		for fileIndex, file := range files {
-			if file.timestamp.IsZero() {
-				continue
-			}
-			if file.ModTime().After(expiredTime) {
-				continue
-			}
-			removeErr := os.Remove(file.Name())
-			if removeErr != nil {
-				return removeErr
-			} else {
-				files[fileIndex].timestamp = time.Time{}
-				files[fileIndex].FileInfo = nil
-			}
-		}
-	}
+	//// 删除超过最大保存天数的文件
+	//if r.MaxAge > 0 {
+	//	expiredTime := time.Now().Add(-time.Duration(r.MaxAge))
+	//	for fileIndex, file := range files {
+	//		if file.timestamp.IsZero() {
+	//			continue
+	//		}
+	//		if file.ModTime().After(expiredTime) {
+	//			continue
+	//		}
+	//		removeErr := os.Remove(file.Name())
+	//		if removeErr != nil {
+	//			return removeErr
+	//		} else {
+	//			files[fileIndex].timestamp = time.Time{}
+	//			files[fileIndex].FileInfo = nil
+	//		}
+	//	}
+	//}
 
 	if r.Compress {
 		for _, file := range files {
@@ -363,7 +323,23 @@ func (r *RotateConfig) backupName(local bool) string {
 	}
 
 	timestamp := t.Format(backupTimeFormat)
-	return filepath.Join(r.FilePath, fmt.Sprintf("%s-%s%s", r.AppName, timestamp, defaultSuffix))
+	return fmt.Sprintf("%s-%s%s", r.AppName, timestamp, defaultSuffix)
+}
+
+func (r *RotateConfig) absFilePath(path ...string) string {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for _, v := range path {
+		pwd = filepath.Join(pwd, v)
+	}
+	f, fErr := filepath.Abs(pwd)
+	if fErr != nil {
+		return ""
+	} else {
+		return f
+	}
 }
 
 type sortFile struct {

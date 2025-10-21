@@ -18,20 +18,16 @@ func New(cfg *RotateConfig, opts ...Option) *Logger {
 		cfg = Init(cfg)
 	}
 
-	var syncer []zapcore.WriteSyncer
-	syncer = append(syncer, zapcore.AddSync(rotateWriter(cfg)))
-	syncer = append(syncer, zapcore.AddSync(cfg.stdout))
-
-	//fmt.Println("////////////////////")
-	//jsonBytes, _ := json.Marshal(cfg)
-	//fmt.Println(string(jsonBytes))
-	//fmt.Println("////////////////////")
+	var syncer = []zapcore.WriteSyncer{
+		zapcore.AddSync(rotateWriter(cfg)),
+		zapcore.AddSync(cfg.stdout),
+	}
+	//syncer = append(syncer, zapcore.AddSync(rotateWriter(cfg)))
+	//syncer = append(syncer, zapcore.AddSync(cfg.stdout))
 
 	al := zap.NewAtomicLevelAt(cfg.level)
-	//r := rotateWriter(cfg)
 	core := zapcore.NewCore(
 		zapcore.NewJSONEncoder(cfg.EncoderConfig),
-		//zapcore.AddSync(cfg.stdout),
 		zapcore.NewMultiWriteSyncer(syncer...),
 		al,
 	)

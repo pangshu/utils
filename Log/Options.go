@@ -369,7 +369,7 @@ func WithStdout(typeValue bool) RotateOption {
 		case true:
 			r.stdout = os.Stdout
 		case false:
-			r.stdout = os.Stderr
+			r.stdout = io.Discard
 		default:
 			r.stdout = os.Stdout
 		}
