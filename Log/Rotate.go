@@ -29,9 +29,7 @@ func NewRotate(r *RotateConfig, opts ...RotateOption) (*RotateConfig, error) {
 	}
 
 	if r.RotateSize != 0 {
-		sizeChan := make(chan bool, 1)
-		sizeChan <- true
-		r.rotateSizeChan = sizeChan
+		r.rotateSizeChan = make(chan bool, 1)
 	}
 
 	if r.RotateTime != 0 || r.RotateSize != 0 {
@@ -93,10 +91,10 @@ func (r *RotateConfig) handleEvent() {
 		select {
 		case <-r.close:
 			return
-		//case timeChan := <-r.rotateTimeChan:
-		//	_ = r.timeRotateFile(timeChan)
-		case sizeChan := <-r.rotateSizeChan:
-			_ = r.sizeRotateFile(sizeChan)
+		case timeChan := <-r.rotateTimeChan:
+			_ = r.timeRotateFile(timeChan)
+		case <-r.rotateSizeChan:
+			_ = r.sizeRotateFile()
 		}
 	}
 }
@@ -109,7 +107,6 @@ func (r *RotateConfig) timeRotateFile(timeChan time.Time) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	//bakName := r.backupName(r.LocalTime)
 	err := r.rotateFile()
 	if err != nil {
 		return err
@@ -129,7 +126,7 @@ func (r *RotateConfig) nextRotateTime(now time.Time, duration time.Duration) tim
 	return time.Duration(nextRotateTime)
 }
 
-func (r *RotateConfig) sizeRotateFile(sizeChan bool) error {
+func (r *RotateConfig) sizeRotateFile() error {
 	//if sizeChanStatus == true {
 	//	sizeChan := make(chan bool, 1)
 	//	sizeChan <- true

@@ -57,7 +57,7 @@ type RotateConfig struct {
 	role           int   // 当前类型权限值
 	mutex          *sync.Mutex
 	rotateTimeChan <-chan time.Time // notify rotate event
-	rotateSizeChan <-chan bool
+	rotateSizeChan chan bool
 	close          chan struct{} // close file and write goroutine
 }
 
