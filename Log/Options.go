@@ -81,6 +81,14 @@ const (
 	size  = 1 << 1
 	all   = 1 << 2
 )
+const (
+	DebugLevel = zapcore.DebugLevel
+	InfoLevel  = zapcore.InfoLevel
+	WarnLevel  = zapcore.WarnLevel
+	ErrorLevel = zapcore.ErrorLevel
+	PanicLevel = zapcore.PanicLevel
+	FatalLevel = zapcore.FatalLevel
+)
 
 type RotateOption func(*RotateConfig)
 

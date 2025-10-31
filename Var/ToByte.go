@@ -7,7 +7,7 @@ import (
 )
 
 // ToByte 强制将变量转换为byte类型.
-func (conv *Var) ToByte(in any) ([]byte, error) {
+func ToByte(in any) ([]byte, error) {
 	i := indirect(in)
 	switch s := i.(type) {
 	case string:

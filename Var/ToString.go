@@ -7,7 +7,7 @@ import (
 )
 
 // ToString 强制将变量转换为string类型.
-func (conv *Var) ToString(in any) (string, error) {
+func ToString(in any) (string, error) {
 	i := indirect(in)
 	switch s := i.(type) {
 	case string:
