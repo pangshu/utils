@@ -5,20 +5,29 @@ import (
 )
 
 // ByAes encrypts by aes.
-func (e *Encrypter) ByAes(c *Cipher) *Encrypter {
-	if e.Error != nil {
-		return e
+func (c *Crypto) ByAes() *Crypto {
+	if c.Error != nil {
+		return c
 	}
 
-	if len(e.src) > 0 {
+	if len(c.src) == 0 {
+		return c
+	}
+
+	if len(c.src) > 0 {
 		block, err := aes.NewCipher(c.Key)
 		if err != nil {
-			e.Error = err
-			return e
+			c.Error = err
+			return c
 		}
-		e.dst, e.Error = c.Encrypt(e.src, block)
+		//fmt.Println("++++++++++++++")
+		//fmt.Println(block.BlockSize())
+		//iv := c.Key[:block.BlockSize()]
+		//fmt.Println(string(iv))
+		//fmt.Println("++++++++++++++")
+		c.dst, c.Error = c.Encrypt(c.src, block)
 	}
-	return e
+	return c
 }
 
 //

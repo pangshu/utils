@@ -2,23 +2,25 @@ package Crypto
 
 import (
 	"crypto/cipher"
+	"errors"
+	"fmt"
 )
 
 // NewCBCEncrypter encrypts data using Cipher Block Chaining (CBC) mode.
 // CBC mode encrypts each block of plaintext by XORing it with the previous
 // ciphertext block before applying the block cipher algorithm.
-func NewCBCEncrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
+func (c *Crypto) NewCBCEncrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
 	if len(iv) == 0 {
-		return dst, EmptyIVError{mode: CBC}
+		return dst, errors.New(fmt.Sprintf("iv cannot be empty in '%s' block mode", CBC))
 	}
 
 	blockSize := block.BlockSize()
 	if len(iv) != blockSize {
-		return dst, InvalidIVError{mode: CBC, iv: iv, size: blockSize}
+		return dst, errors.New(fmt.Sprintf("iv length %d must equal block size %d in '%s' block mode", len(iv), blockSize, CBC))
 	}
 
 	if len(src)%blockSize != 0 {
-		return dst, InvalidSrcError{mode: CBC, src: src, size: blockSize}
+		return dst, errors.New(fmt.Sprintf("src length %d must be a multiple of block size %d in '%s' block mode", len(src), blockSize, CBC))
 	}
 
 	// Perform CBC encryption using the standard library implementation
@@ -30,18 +32,18 @@ func NewCBCEncrypter(src, iv []byte, block cipher.Block) (dst []byte, err error)
 // NewCBCDecrypter decrypts data using Cipher Block Chaining (CBC) mode.
 // CBC decryption reverses the encryption process by applying the block cipher
 // and then XORing with the previous ciphertext block.
-func NewCBCDecrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
+func (c *Crypto) NewCBCDecrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
 	if len(iv) == 0 {
-		return dst, EmptyIVError{mode: CBC}
+		return dst, errors.New(fmt.Sprintf("iv cannot be empty in '%s' block mode", CBC))
 	}
 
 	blockSize := block.BlockSize()
 	if len(iv) != blockSize {
-		return dst, InvalidIVError{mode: CBC, iv: iv, size: blockSize}
+		return dst, errors.New(fmt.Sprintf("iv length %d must equal block size %d in '%s' block mode", len(iv), blockSize, CBC))
 	}
 
 	if len(src)%blockSize != 0 {
-		return dst, InvalidSrcError{mode: CBC, src: src, size: blockSize}
+		return dst, errors.New(fmt.Sprintf("src length %d must be a multiple of block size %d in '%s' block mode", len(src), blockSize, CBC))
 	}
 
 	// Perform CBC decryption using the standard library implementation
@@ -53,9 +55,9 @@ func NewCBCDecrypter(src, iv []byte, block cipher.Block) (dst []byte, err error)
 // NewCTREncrypter encrypts data using Counter (CTR) mode.
 // CTR mode transforms a block cipher into a stream cipher by encrypting
 // a counter value and XORing the result with the plaintext.
-func NewCTREncrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
+func (c *Crypto) NewCTREncrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
 	if len(iv) == 0 {
-		return dst, EmptyIVError{mode: CTR}
+		return dst, errors.New(fmt.Sprintf("iv cannot be empty in '%s' block mode", CTR))
 	}
 
 	// Handle nonce for CTR mode
@@ -76,9 +78,9 @@ func NewCTREncrypter(src, iv []byte, block cipher.Block) (dst []byte, err error)
 
 // NewCTRDecrypter decrypts data using Counter (CTR) mode.
 // In CTR mode, decryption is identical to encryption since it's a stream cipher.
-func NewCTRDecrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
+func (c *Crypto) NewCTRDecrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
 	if len(iv) == 0 {
-		return dst, EmptyIVError{mode: CTR}
+		return dst, errors.New(fmt.Sprintf("iv cannot be empty in '%s' block mode", CTR))
 	}
 
 	// Handle nonce for CTR mode
@@ -101,10 +103,10 @@ func NewCTRDecrypter(src, iv []byte, block cipher.Block) (dst []byte, err error)
 // ECB mode encrypts each block of plaintext independently using the same key.
 // Note: ECB mode is generally not recommended for secure applications due to
 // its vulnerability to pattern analysis.
-func NewECBEncrypter(src []byte, block cipher.Block) (dst []byte, err error) {
+func (c *Crypto) NewECBEncrypter(src []byte, block cipher.Block) (dst []byte, err error) {
 	blockSize := block.BlockSize()
 	if len(src)%blockSize != 0 {
-		return dst, InvalidSrcError{mode: ECB, src: src, size: blockSize}
+		return dst, errors.New(fmt.Sprintf("src length %d must be a multiple of block size %d in '%s' block mode", len(src), blockSize, ECB))
 	}
 
 	// Perform ECB encryption - encrypt each block independently
@@ -117,10 +119,10 @@ func NewECBEncrypter(src []byte, block cipher.Block) (dst []byte, err error) {
 
 // NewECBDecrypter decrypts data using Electronic Codebook (ECB) mode.
 // ECB decryption decrypts each block independently.
-func NewECBDecrypter(src []byte, block cipher.Block) (dst []byte, err error) {
+func (c *Crypto) NewECBDecrypter(src []byte, block cipher.Block) (dst []byte, err error) {
 	blockSize := block.BlockSize()
 	if len(src)%blockSize != 0 {
-		return dst, InvalidSrcError{mode: ECB, src: src, size: blockSize}
+		return dst, errors.New(fmt.Sprintf("src length %d must be a multiple of block size %d in '%s' block mode", len(src), blockSize, ECB))
 	}
 
 	// Perform ECB decryption - decrypt each block independently
@@ -135,15 +137,15 @@ func NewECBDecrypter(src []byte, block cipher.Block) (dst []byte, err error) {
 // GCM is an authenticated encryption mode that provides both confidentiality
 // and authenticity. It combines CTR mode encryption with a Galois field
 // multiplication for authentication.
-func NewGCMEncrypter(src, nonce, aad []byte, block cipher.Block) (dst []byte, err error) {
+func (c *Crypto) NewGCMEncrypter(src, nonce, aad []byte, block cipher.Block) (dst []byte, err error) {
 	if len(nonce) == 0 {
-		return dst, EmptyNonceError{mode: GCM}
+		return dst, errors.New(fmt.Sprintf("nonce cannot be empty in '%s' block mode", GCM))
 	}
 
 	// Create GCM cipher from the underlying block cipher
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return dst, CreateCipherError{mode: GCM, err: err}
+		return dst, errors.New(fmt.Sprintf("failed to create cipher in '%s' block mode: %v", GCM, err))
 	}
 
 	// Perform GCM encryption with authentication
@@ -153,15 +155,15 @@ func NewGCMEncrypter(src, nonce, aad []byte, block cipher.Block) (dst []byte, er
 
 // NewGCMDecrypter decrypts data using Galois/Counter Mode (GCM).
 // GCM decryption verifies the authentication tag before decrypting the data.
-func NewGCMDecrypter(src, nonce, aad []byte, block cipher.Block) (dst []byte, err error) {
+func (c *Crypto) NewGCMDecrypter(src, nonce, aad []byte, block cipher.Block) (dst []byte, err error) {
 	if len(nonce) == 0 {
-		return dst, EmptyNonceError{mode: GCM}
+		return dst, errors.New(fmt.Sprintf("nonce cannot be empty in '%s' block mode", GCM))
 	}
 
 	// Create GCM cipher from the underlying block cipher
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return dst, CreateCipherError{mode: GCM, err: err}
+		return dst, errors.New(fmt.Sprintf("failed to create cipher in '%s' block mode: %v", GCM, err))
 	}
 
 	// Perform GCM decryption with authentication verification
@@ -171,14 +173,14 @@ func NewGCMDecrypter(src, nonce, aad []byte, block cipher.Block) (dst []byte, er
 // NewCFBEncrypter encrypts data using Cipher Feedback (CFB) mode.
 // CFB mode transforms a block cipher into a stream cipher by encrypting
 // the previous ciphertext block and XORing the result with the plaintext.
-func NewCFBEncrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
-	if len(iv) == 0 {
-		return dst, EmptyIVError{mode: CFB}
-	}
+func (c *Crypto) NewCFBEncrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
+	//if len(iv) == 0 {
+	//	return dst, errors.New(fmt.Sprintf("iv cannot be empty in '%s' block mode", CFB))
+	//}
 
 	blockSize := block.BlockSize()
 	if len(iv) != blockSize {
-		return dst, InvalidIVError{mode: CFB, iv: iv, size: blockSize}
+		iv = c.paddingIVWithZero(iv, blockSize)
 	}
 
 	// Perform CFB encryption using the standard library implementation
@@ -187,16 +189,32 @@ func NewCFBEncrypter(src, iv []byte, block cipher.Block) (dst []byte, err error)
 	return
 }
 
+func (c *Crypto) paddingIVWithZero(iv []byte, size int) []byte {
+	if len(iv) > size {
+		//超出，进行截取
+		iv = iv[:size]
+	} else {
+		//不足，进行填充
+		if c.IvPaddingType == Left {
+			iv = append(make([]byte, size-len(iv)), iv...)
+		} else {
+			iv = append(iv, make([]byte, size-len(iv))...)
+		}
+	}
+
+	return iv
+}
+
 // NewCFBDecrypter decrypts data using Cipher Feedback (CFB) mode.
 // In CFB mode, decryption is identical to encryption since it's a stream cipher.
-func NewCFBDecrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
+func (c *Crypto) NewCFBDecrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
 	if len(iv) == 0 {
-		return dst, EmptyIVError{mode: CFB}
+		return dst, errors.New(fmt.Sprintf("iv cannot be empty in '%s' block mode", CFB))
 	}
 
 	blockSize := block.BlockSize()
 	if len(iv) != blockSize {
-		return dst, InvalidIVError{mode: CFB, iv: iv, size: blockSize}
+		return dst, errors.New(fmt.Sprintf("iv length %d must equal block size %d in '%s' block mode", len(iv), blockSize, CFB))
 	}
 
 	// Perform CFB decryption using the standard library implementation
@@ -208,14 +226,14 @@ func NewCFBDecrypter(src, iv []byte, block cipher.Block) (dst []byte, err error)
 // NewOFBEncrypter encrypts data using Output Feedback (OFB) mode.
 // OFB mode transforms a block cipher into a stream cipher by repeatedly
 // encrypting the initialization vector and using the output as a keystream.
-func NewOFBEncrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
+func (c *Crypto) NewOFBEncrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
 	if len(iv) == 0 {
-		return dst, EmptyIVError{mode: OFB}
+		return dst, errors.New(fmt.Sprintf("iv cannot be empty in '%s' block mode", OFB))
 	}
 
 	blockSize := block.BlockSize()
 	if len(iv) != blockSize {
-		return dst, InvalidIVError{mode: OFB, iv: iv, size: blockSize}
+		return dst, errors.New(fmt.Sprintf("iv length %d must equal block size %d in '%s' block mode", len(iv), blockSize, OFB))
 	}
 
 	// Perform OFB encryption using the standard library implementation
@@ -226,14 +244,14 @@ func NewOFBEncrypter(src, iv []byte, block cipher.Block) (dst []byte, err error)
 
 // NewOFBDecrypter decrypts data using Output Feedback (OFB) mode.
 // In OFB mode, decryption is identical to encryption since it's a stream cipher.
-func NewOFBDecrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
+func (c *Crypto) NewOFBDecrypter(src, iv []byte, block cipher.Block) (dst []byte, err error) {
 	if len(iv) == 0 {
-		return dst, EmptyIVError{mode: OFB}
+		return dst, errors.New(fmt.Sprintf("iv cannot be empty in '%s' block mode", OFB))
 	}
 
 	blockSize := block.BlockSize()
 	if len(iv) != blockSize {
-		return dst, InvalidIVError{mode: OFB, iv: iv, size: blockSize}
+		return dst, errors.New(fmt.Sprintf("iv length %d must equal block size %d in '%s' block mode", len(iv), blockSize, OFB))
 	}
 
 	// Perform OFB decryption using the standard library implementation

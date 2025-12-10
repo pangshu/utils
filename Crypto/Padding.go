@@ -3,7 +3,61 @@ package Crypto
 import (
 	"bytes"
 	"crypto/rand"
+	"errors"
+	"fmt"
 )
+
+// padding adds padding to the source data.
+func (e *Crypto) padding(src []byte, blockSize int) (dst []byte, err error) {
+	switch e.Padding {
+	case No:
+		return NewNoPadding(src), nil
+	case Zero:
+		return NewZeroPadding(src, blockSize), nil
+	case PKCS5:
+		return NewPKCS5Padding(src), nil
+	case PKCS7:
+		return NewPKCS7Padding(src, blockSize), nil
+	case AnsiX923:
+		return NewAnsiX923Padding(src, blockSize), nil
+	case ISO97971:
+		return NewISO97971Padding(src, blockSize), nil
+	case ISO10126:
+		return NewISO10126Padding(src, blockSize), nil
+	case ISO78164:
+		return NewISO78164Padding(src, blockSize), nil
+	case Bit:
+		return NewBitPadding(src, blockSize), nil
+	default:
+		return dst, errors.New(fmt.Sprintf("unsupported padding mode '%s'", e.Padding))
+	}
+}
+
+// unpadding removes padding from the source data.
+func (e *Crypto) unpadding(src []byte) (dst []byte, err error) {
+	switch e.Padding {
+	case No:
+		return NewNoUnPadding(src), nil
+	case Zero:
+		return NewZeroUnPadding(src), nil
+	case PKCS5:
+		return NewPKCS5UnPadding(src), nil
+	case PKCS7:
+		return NewPKCS7UnPadding(src), nil
+	case AnsiX923:
+		return NewAnsiX923UnPadding(src), nil
+	case ISO97971:
+		return NewISO97971UnPadding(src), nil
+	case ISO10126:
+		return NewISO10126UnPadding(src), nil
+	case ISO78164:
+		return NewISO78164UnPadding(src), nil
+	case Bit:
+		return NewBitUnPadding(src), nil
+	default:
+		return dst, errors.New(fmt.Sprintf("unsupported padding mode '%s'", e.Padding))
+	}
+}
 
 // NewNoPadding adds no padding to the source data.
 // This function simply returns the original data without modification.

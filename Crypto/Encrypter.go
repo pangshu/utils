@@ -10,134 +10,205 @@ import (
 	"strconv"
 )
 
-// NewEncrypter 创建新的加密器实例
-func NewEncrypter() *Encrypter {
-	return &Encrypter{
-		//chunkSize: 64 * 1024, // 默认64KB的块大小
-	}
-}
-
 // Content 设置要加密/解密的内容，支持任意类型
-func (e *Encrypter) Content(content any) *Encrypter {
-	if e.Error != nil {
-		return e
+func (c *Crypto) Content(content any) *Crypto {
+	if c.Error != nil {
+		return c
 	}
 
 	if content == nil {
-		e.Error = fmt.Errorf("content cannot be nil")
-		return e
+		c.Error = fmt.Errorf("content cannot be nil")
+		return c
+	}
+
+	c.src = c.anyToBytes(content)
+	//// 根据不同类型转换为字节数组
+	//switch v := content.(type) {
+	//case string:
+	//	c.src = []byte(v)
+	//case []byte:
+	//	c.src = v
+	//case int, int8, int16, int32, int64:
+	//	c.src = []byte(fmt.Sprintf("%d", v))
+	//case uint, uint8, uint16, uint32, uint64:
+	//	c.src = []byte(fmt.Sprintf("%d", v))
+	//case float32, float64:
+	//	c.src = []byte(fmt.Sprintf("%f", v))
+	//case bool:
+	//	c.src = []byte(strconv.FormatBool(v))
+	//default:
+	//	// 对于其他类型，尝试JSON序列化
+	//	jsonData, err := json.Marshal(v)
+	//	if err != nil {
+	//		c.Error = fmt.Errorf("unsupported content type: %s, and JSON marshal failed: %v",
+	//			reflect.TypeOf(content).String(), err)
+	//		return c
+	//	}
+	//	c.src = jsonData
+	//}
+
+	return c
+}
+
+// anyToBytes 将任意类型转换为字节数组
+func (c *Crypto) anyToBytes(v any) []byte {
+	if v == nil {
+		return nil
 	}
 
 	// 根据不同类型转换为字节数组
-	switch v := content.(type) {
+	switch val := v.(type) {
 	case string:
-		e.src = []byte(v)
+		return []byte(val)
 	case []byte:
-		e.src = v
+		return val
 	case int, int8, int16, int32, int64:
-		e.src = []byte(fmt.Sprintf("%d", v))
+		return []byte(fmt.Sprintf("%d", val))
 	case uint, uint8, uint16, uint32, uint64:
-		e.src = []byte(fmt.Sprintf("%d", v))
+		return []byte(fmt.Sprintf("%d", val))
 	case float32, float64:
-		e.src = []byte(fmt.Sprintf("%f", v))
+		return []byte(fmt.Sprintf("%f", val))
 	case bool:
-		e.src = []byte(strconv.FormatBool(v))
+		return []byte(strconv.FormatBool(val))
 	default:
 		// 对于其他类型，尝试JSON序列化
-		jsonData, err := json.Marshal(v)
+		jsonData, err := json.Marshal(val)
 		if err != nil {
-			e.Error = fmt.Errorf("unsupported content type: %s, and JSON marshal failed: %v",
-				reflect.TypeOf(content).String(), err)
-			return e
+			return nil
 		}
-		e.src = jsonData
+		return jsonData
 	}
 
-	return e
 }
+
+//// NewCrypto 创建新的加密器实例
+//func NewCrypto() *Crypto {
+//	return &Crypto{
+//		//chunkSize: 64 * 1024, // 默认64KB的块大小
+//	}
+//}
+
+//// Content 设置要加密/解密的内容，支持任意类型
+//func (c *Crypto) Content(content any) *Crypto {
+//	if c.Error != nil {
+//		return c
+//	}
+//
+//	if content == nil {
+//		c.Error = fmt.Errorf("content cannot be nil")
+//		return c
+//	}
+//
+//	// 根据不同类型转换为字节数组
+//	switch v := content.(type) {
+//	case string:
+//		c.src = []byte(v)
+//	case []byte:
+//		c.src = v
+//	case int, int8, int16, int32, int64:
+//		c.src = []byte(fmt.Sprintf("%d", v))
+//	case uint, uint8, uint16, uint32, uint64:
+//		c.src = []byte(fmt.Sprintf("%d", v))
+//	case float32, float64:
+//		c.src = []byte(fmt.Sprintf("%f", v))
+//	case bool:
+//		c.src = []byte(strconv.FormatBool(v))
+//	default:
+//		// 对于其他类型，尝试JSON序列化
+//		jsonData, err := json.Marshal(v)
+//		if err != nil {
+//			c.Error = fmt.Errorf("unsupported content type: %s, and JSON marshal failed: %v",
+//				reflect.TypeOf(content).String(), err)
+//			return c
+//		}
+//		c.src = jsonData
+//	}
+//
+//	return c
+//}
 
 //
 //// FromFile 从文件读取内容（支持大文件）
-//func (e *Encrypter) ContentFile(filePath string) *Encrypter {
-//	if e.Error != nil {
-//		return e
+//func (c *Crypto) ContentFile(filePath string) *Crypto {
+//	if c.Error != nil {
+//		return c
 //	}
 //
-//	e.filePath = filePath
+//	c.filePath = filePath
 //	file, err := os.Open(filePath)
 //	if err != nil {
-//		e.Error = fmt.Errorf("failed to open file: %v", err)
-//		return e
+//		c.Error = fmt.Errorf("failed to open file: %v", err)
+//		return c
 //	}
-//	defer file.Close()
+//	defer filc.Close()
 //
 //	// 对于大文件，我们不立即读取全部内容，而是保存reader引用
-//	e.reader = file
-//	return e
+//	c.reader = file
+//	return c
 //}
 
 // ToString 返回字符串结果
-func (e *Encrypter) ToString() string {
-	if e.Error != nil {
+func (c *Crypto) ToString() string {
+	if c.Error != nil {
 		return ""
 	}
-	if e.dst == nil {
+	if c.dst == nil {
 		return ""
 	}
-	return string(e.dst)
+	return string(c.dst)
 }
 
 // ToHex 返回十六进制字符串
-func (e *Encrypter) ToHex() string {
-	if e.Error != nil {
+func (c *Crypto) ToHex() string {
+	if c.Error != nil {
+		return c.Error.Error()
+	}
+	if c.dst == nil {
 		return ""
 	}
-	if e.dst == nil {
-		return ""
-	}
-	return hex.EncodeToString(e.dst)
+	return hex.EncodeToString(c.dst)
 }
 
 // ToBase64 返回Base64编码字符串
-func (e *Encrypter) ToBase64() string {
-	if e.Error != nil {
+func (c *Crypto) ToBase64() string {
+	if c.Error != nil {
 		return ""
 	}
-	if e.dst == nil {
+	if c.dst == nil {
 		return ""
 	}
-	return base64.StdEncoding.EncodeToString(e.dst)
+	return base64.StdEncoding.EncodeToString(c.dst)
 }
 
 // ToBytes 返回字节数组
-func (e *Encrypter) ToBytes() []byte {
-	if e.Error != nil {
+func (c *Crypto) ToBytes() []byte {
+	if c.Error != nil {
 		return nil
 	}
-	return e.dst
+	return c.dst
 }
 
 // GetError 获取错误信息
-func (e *Encrypter) GetError() error {
-	return e.Error
+func (c *Crypto) GetError() error {
+	return c.Error
 }
 
 // hash 通用哈希计算函数（内存数据）
-func (e *Encrypter) hash(h hash.Hash) []byte {
-	h.Write(e.src)
+func (c *Crypto) hash(h hash.Hash) []byte {
+	h.Write(c.src)
 	return h.Sum(nil)
 }
 
 //
 //// hashStream 流式哈希计算（大文件）
-//func (e *Encrypter) hashStream(h hash.Hash) *Encrypter {
-//	buffer := make([]byte, e.chunkSize)
+//func (c *Crypto) hashStream(h hash.Hash) *Crypto {
+//	buffer := make([]byte, c.chunkSize)
 //
 //	for {
-//		n, err := e.reader.Read(buffer)
+//		n, err := c.reader.Read(buffer)
 //		if err != nil && err != io.EOF {
-//			e.Error = fmt.Errorf("failed to read file: %v", err)
-//			return e
+//			c.Error = fmt.Errorf("failed to read file: %v", err)
+//			return c
 //		}
 //
 //		if n == 0 {
@@ -147,28 +218,28 @@ func (e *Encrypter) hash(h hash.Hash) []byte {
 //		h.Write(buffer[:n])
 //	}
 //
-//	e.dst = h.Sum(nil)
-//	return e
+//	c.dst = h.Sum(nil)
+//	return c
 //}
 //
 //// aesEncryptStream 流式AES加密
-//func (e *Encrypter) aesEncryptStream() *Encrypter {
-//	key := e.padKey(e.key, 32)
+//func (c *Crypto) aesEncryptStream() *Crypto {
+//	key := c.padKey(c.key, 32)
 //	block, err := aes.NewCipher(key)
 //	if err != nil {
-//		e.Error = fmt.Errorf("failed to create AES cipher: %v", err)
-//		return e
+//		c.Error = fmt.Errorf("failed to create AES cipher: %v", err)
+//		return c
 //	}
 //
 //	iv := key[:aes.BlockSize]
-//	stream := cipher.NewCFBEncrypter(block, iv)
+//	stream := cipher.NewCFBCrypto(block, iv)
 //
-//	buffer := make([]byte, e.chunkSize)
+//	buffer := make([]byte, c.chunkSize)
 //	for {
-//		n, err := e.reader.Read(buffer)
+//		n, err := c.reader.Read(buffer)
 //		if err != nil && err != io.EOF {
-//			e.Error = fmt.Errorf("failed to read file: %v", err)
-//			return e
+//			c.Error = fmt.Errorf("failed to read file: %v", err)
+//			return c
 //		}
 //
 //		if n == 0 {
@@ -178,33 +249,33 @@ func (e *Encrypter) hash(h hash.Hash) []byte {
 //		ciphertext := make([]byte, n)
 //		stream.XORKeyStream(ciphertext, buffer[:n])
 //
-//		if _, err := e.writer.Write(ciphertext); err != nil {
-//			e.Error = fmt.Errorf("failed to write encrypted data: %v", err)
-//			return e
+//		if _, err := c.writer.Write(ciphertext); err != nil {
+//			c.Error = fmt.Errorf("failed to write encrypted data: %v", err)
+//			return c
 //		}
 //	}
 //
-//	return e
+//	return c
 //}
 //
 //// aesDecryptStream 流式AES解密
-//func (e *Encrypter) aesDecryptStream() *Encrypter {
-//	key := e.padKey(e.key, 32)
+//func (c *Crypto) aesDecryptStream() *Crypto {
+//	key := c.padKey(c.key, 32)
 //	block, err := aes.NewCipher(key)
 //	if err != nil {
-//		e.Error = fmt.Errorf("failed to create AES cipher: %v", err)
-//		return e
+//		c.Error = fmt.Errorf("failed to create AES cipher: %v", err)
+//		return c
 //	}
 //
 //	iv := key[:aes.BlockSize]
 //	stream := cipher.NewCFBDecrypter(block, iv)
 //
-//	buffer := make([]byte, e.chunkSize)
+//	buffer := make([]byte, c.chunkSize)
 //	for {
-//		n, err := e.reader.Read(buffer)
+//		n, err := c.reader.Read(buffer)
 //		if err != nil && err != io.EOF {
-//			e.Error = fmt.Errorf("failed to read file: %v", err)
-//			return e
+//			c.Error = fmt.Errorf("failed to read file: %v", err)
+//			return c
 //		}
 //
 //		if n == 0 {
@@ -214,17 +285,17 @@ func (e *Encrypter) hash(h hash.Hash) []byte {
 //		plaintext := make([]byte, n)
 //		stream.XORKeyStream(plaintext, buffer[:n])
 //
-//		if _, err := e.writer.Write(plaintext); err != nil {
-//			e.Error = fmt.Errorf("failed to write decrypted data: %v", err)
-//			return e
+//		if _, err := c.writer.Write(plaintext); err != nil {
+//			c.Error = fmt.Errorf("failed to write decrypted data: %v", err)
+//			return c
 //		}
 //	}
 //
-//	return e
+//	return c
 //}
 
 // padKey 填充密钥到指定长度
-func (e *Encrypter) padKey(key []byte, size int) []byte {
+func (c *Crypto) padKey(key []byte, size int) []byte {
 	if len(key) >= size {
 		return key[:size]
 	}
@@ -239,133 +310,133 @@ func (e *Encrypter) padKey(key []byte, size int) []byte {
 }
 
 // Base64Decode Base64解码
-func (e *Encrypter) Base64Decode() *Encrypter {
-	if e.Error != nil {
-		return e
+func (c *Crypto) Base64Decode() *Crypto {
+	if c.Error != nil {
+		return c
 	}
 
-	if len(e.src) == 0 {
-		e.Error = fmt.Errorf("content is empty")
-		return e
+	if len(c.src) == 0 {
+		c.Error = fmt.Errorf("content is empty")
+		return c
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(string(e.src))
+	decoded, err := base64.StdEncoding.DecodeString(string(c.src))
 	if err != nil {
-		e.Error = fmt.Errorf("base64 decode failed: %v", err)
-		return e
+		c.Error = fmt.Errorf("base64 decode failed: %v", err)
+		return c
 	}
 
-	e.dst = decoded
-	return e
+	c.dst = decoded
+	return c
 }
 
 // HexDecode 十六进制解码
-func (e *Encrypter) HexDecode() *Encrypter {
-	if e.Error != nil {
-		return e
+func (c *Crypto) HexDecode() *Crypto {
+	if c.Error != nil {
+		return c
 	}
 
-	if len(e.src) == 0 {
-		e.Error = fmt.Errorf("content is empty")
-		return e
+	if len(c.src) == 0 {
+		c.Error = fmt.Errorf("content is empty")
+		return c
 	}
 
-	decoded, err := hex.DecodeString(string(e.src))
+	decoded, err := hex.DecodeString(string(c.src))
 	if err != nil {
-		e.Error = fmt.Errorf("hex decode failed: %v", err)
-		return e
+		c.Error = fmt.Errorf("hex decode failed: %v", err)
+		return c
 	}
 
-	e.dst = decoded
-	return e
+	c.dst = decoded
+	return c
 }
 
 //
 //// GetFileHash 快速获取文件哈希（便捷方法）
 //func GetFileHash(filePath string, algorithm string) (string, error) {
-//	encrypter := NewEncrypter().FromFile(filePath)
+//	Crypto := NewCrypto().FromFile(filePath)
 //
 //	switch algorithm {
 //	case "md5":
-//		encrypter.ByMd5()
+//		Crypto.ByMd5()
 //	case "sha256":
-//		encrypter.BySha256()
+//		Crypto.BySha256()
 //	default:
 //		return "", fmt.Errorf("unsupported algorithm: %s", algorithm)
 //	}
 //
-//	if encrypter.Error != nil {
-//		return "", encrypter.Error
+//	if Crypto.Error != nil {
+//		return "", Crypto.Error
 //	}
 //
-//	return encrypter.ToHex(), nil
+//	return Crypto.ToHex(), nil
 //}
 
 // // FromString encodes from string.
 //
-//	func (e Encrypter) FromString(s string) Encrypter {
-//		e.src, _ = Var.ToByte(s)
-//		return e
+//	func (e Crypto) FromString(s string) Crypto {
+//		c.src, _ = Var.ToByte(s)
+//		return c
 //	}
 //
-// // FromBytes encodes from byte slice.
+// // FromBytes encodes from byte slicc.
 //
-//	func (e Encrypter) FromBytes(b []byte) Encrypter {
-//		e.src = b
-//		return e
+//	func (e Crypto) FromBytes(b []byte) Crypto {
+//		c.src = b
+//		return c
 //	}
 //
-// // FromFile encodes from file.
+// // FromFile encodes from filc.
 //
-//	func (e Encrypter) FromFile(f fs.File) Encrypter {
-//		e.reader = f
-//		return e
+//	func (e Crypto) FromFile(f fs.File) Crypto {
+//		c.reader = f
+//		return c
 //	}
 //
 // // ToString outputs as string.
 //
-//	func (e Encrypter) ToString() string {
-//		res, _ := Var.ToString(e.dst)
+//	func (e Crypto) ToString() string {
+//		res, _ := Var.ToString(c.dst)
 //		return res
 //	}
 //
-// // ToBytes outputs as byte slice.
+// // ToBytes outputs as byte slicc.
 //
-//	func (e Encrypter) ToBytes() []byte {
-//		if len(e.dst) == 0 {
+//	func (e Crypto) ToBytes() []byte {
+//		if len(c.dst) == 0 {
 //			return []byte{}
 //		}
-//		return e.dst
+//		return c.dst
 //	}
 //
-// //func (e Encrypter) ToBase64String() string {
-// //	return coding.NewEncoder().FromBytes(e.dst).ByBase64().ToString()
+// //func (e Crypto) ToBase64String() string {
+// //	return coding.NewEncoder().FromBytes(c.dst).ByBase64().ToString()
 // //}
 // //
-// //// ToBase64Bytes outputs as base64 byte slice.
-// //func (e Encrypter) ToBase64Bytes() []byte {
-// //	return coding.NewEncoder().FromBytes(e.dst).ByBase64().ToBytes()
+// //// ToBase64Bytes outputs as base64 byte slicc.
+// //func (e Crypto) ToBase64Bytes() []byte {
+// //	return coding.NewEncoder().FromBytes(c.dst).ByBase64().ToBytes()
 // //}
 // //
 // //// ToHexString outputs as hex string.
-// //func (e Encrypter) ToHexString() string {
-// //	return coding.NewEncoder().FromBytes(e.dst).ByHex().ToString()
+// //func (e Crypto) ToHexString() string {
+// //	return coding.NewEncoder().FromBytes(c.dst).ByHex().ToString()
 // //}
 // //
-// //// ToHexBytes outputs as hex byte slice.
-// //func (e Encrypter) ToHexBytes() []byte {
-// //	return coding.NewEncoder().FromBytes(e.dst).ByHex().ToBytes()
+// //// ToHexBytes outputs as hex byte slicc.
+// //func (e Crypto) ToHexBytes() []byte {
+// //	return coding.NewEncoder().FromBytes(c.dst).ByHex().ToBytes()
 // //}
 //
-//	func (e Encrypter) stream(fn func(io.Writer) io.WriteCloser) ([]byte, error) {
+//	func (e Crypto) stream(fn func(io.Writer) io.WriteCloser) ([]byte, error) {
 //		var buf bytes.Buffer
 //		encoder := fn(&buf)
 //
 //		// Try to reset the reader position if it's a seeker
-//		if seeker, ok := e.reader.(io.Seeker); ok {
+//		if seeker, ok := c.reader.(io.Seeker); ok {
 //			_, _ = seeker.Seek(0, io.SeekStart)
 //		}
-//		if _, err := io.CopyBuffer(encoder, e.reader, make([]byte, BufferSize)); err != nil && err != io.EOF {
+//		if _, err := io.CopyBuffer(encoder, c.reader, make([]byte, BufferSize)); err != nil && err != io.EOF {
 //			_ = encoder.Close()
 //			return []byte{}, err
 //		}
@@ -380,27 +451,27 @@ func (e *Encrypter) HexDecode() *Encrypter {
 //
 // // // ByHex encodes by hex.
 // //
-// //	func (e Encrypter) ByHex() Encrypter {
-// //		if e.Error != nil {
-// //			return e
+// //	func (e Crypto) ByHex() Crypto {
+// //		if c.Error != nil {
+// //			return c
 // //		}
 // //
 // //		// Streaming encoding mode
-// //		if e.reader != nil {
-// //			e.dst, e.Error = e.stream(func(w io.Writer) io.WriteCloser {
+// //		if c.reader != nil {
+// //			c.dst, c.Error = c.stream(func(w io.Writer) io.WriteCloser {
 // //				return hex.NewStreamEncoder(w)
 // //			})
-// //			return e
+// //			return c
 // //		}
 // //
 // //		// Standard encoding mode
-// //		if len(e.src) > 0 {
-// //			e.dst = hex.NewStdEncoder().Encode(e.src)
+// //		if len(c.src) > 0 {
+// //			c.dst = hex.NewStdEncoder().Encode(c.src)
 // //		}
 // //
-// //		return e
+// //		return c
 // //	}
-func (e *Encrypter) indirect(in any) any {
+func (c *Crypto) indirect(in any) any {
 	if in == nil {
 		return nil
 	}

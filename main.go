@@ -2,24 +2,31 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"reflect"
-	//"utils/Log"
+	"utils/Crypto"
 )
 
 func main() {
-	tty, err := os.OpenFile("./LogTest/Rotate.go_bak", os.O_RDWR, 0)
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		//aaa := reflect.TypeOf(tty)
-		switch fmt.Sprintln(reflect.TypeOf(tty)) {
-		case "*os.File":
-			fmt.Println("11111111111")
-		}
-		//fmt.Sprintln(reflect.TypeOf(tty))
-		fmt.Println("hello world")
-	}
+	encrypter := Crypto.Init(Crypto.WithKey("thisisakeymustmorethan16"), Crypto.WithIv("thisis"), Crypto.WithPadding(Crypto.PKCS5), Crypto.WithBlock(Crypto.CFB))
+	//var encrypter Crypto.Encrypter
+	//fmt.Println(string(aaa.Key))
+	//jsonStr, _ := json.Marshal(&cipher)
+	//fmt.Println(string(jsonStr))
+	res := encrypter.Content("hello world").ByAes().ToHex()
+	fmt.Println("11111111111111111")
+	fmt.Println(res)
+
+	//tty, err := os.OpenFile("./LogTest/Rotate.go_bak", os.O_RDWR, 0)
+	//if err != nil {
+	//	fmt.Println(err)
+	//} else {
+	//	//aaa := reflect.TypeOf(tty)
+	//	switch fmt.Sprintln(reflect.TypeOf(tty)) {
+	//	case "*os.File":
+	//		fmt.Println("11111111111")
+	//	}
+	//	//fmt.Sprintln(reflect.TypeOf(tty))
+	//	fmt.Println("hello world")
+	//}
 	//var config Log.RotateConfig
 	//fmt.Println(config)
 	//config.FilePath = "./logger/"

@@ -2,21 +2,39 @@ package Crypto
 
 var BufferSize = 64 * 1024
 
-// Encrypter 加密器结构体
-type Encrypter struct {
+// Crypto 密码结构体
+type Crypto struct {
 	src   []byte //原始内容
 	dst   []byte //目标内容
 	Error error
+
+	Key           []byte      //密钥
+	Iv            []byte      //初始向量
+	IvPaddingType PaddingType //初始向量填充类型，0向后填充，1向前填充
+	Additional    []byte      //附加数据
+	Nonce         []byte      //随机数
+	Padding       PaddingMode //填充数据
+	Block         BlockMode
 }
 
-type Cipher struct {
-	Key     []byte      //密钥
-	Iv      []byte      //初始向量
-	Addl    []byte      //附加数据
-	Nonce   []byte      //随机数
-	Padding PaddingMode //填充数据
-	Block   BlockMode
-}
+//type Cipher struct {
+//	Key           []byte      //密钥
+//	Iv            []byte      //初始向量
+//	IvPaddingType PaddingType //初始向量填充类型
+//	Addl          []byte      //附加数据
+//	Nonce         []byte      //随机数
+//	Padding       PaddingMode //填充数据
+//	Block         BlockMode
+//	Error         error
+//}
+
+type PaddingType string
+
+const (
+	Left  PaddingType = "Left"  // Left padding - fills with zeros on left
+	Right PaddingType = "Right" // Right padding - fills with zeros on right
+)
+
 type PaddingMode string
 
 const (
@@ -42,3 +60,59 @@ const (
 	CFB BlockMode = "CFB" // Cipher Feedback mode
 	OFB BlockMode = "OFB" // Output Feedback mode
 )
+
+type Option func(*Crypto)
+
+func Init(opts ...Option) *Crypto {
+	cfg := &Crypto{
+		IvPaddingType: Right,
+		Padding:       No,
+		Block:         CBC,
+	}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	return cfg
+}
+
+// WithKey 设置加密密钥
+func WithKey(v any) Option {
+	return func(c *Crypto) {
+		c.Key = c.anyToBytes(v)
+	}
+}
+
+// WithIv 添加偏移量
+func WithIv(v any) Option {
+	return func(c *Crypto) {
+		c.Iv = c.anyToBytes(v)
+	}
+}
+
+// WithBlock 添加块模式
+func WithBlock(v BlockMode) Option {
+	return func(c *Crypto) {
+		c.Block = v
+	}
+}
+
+// WithNonce 添加随机数
+func WithNonce(v any) Option {
+	return func(c *Crypto) {
+		c.Nonce = c.anyToBytes(v)
+	}
+}
+
+// WithPadding 添加填充数据
+func WithPadding(v PaddingMode) Option {
+	return func(c *Crypto) {
+		c.Padding = v
+	}
+}
+
+func WithIvPadding(v PaddingType) Option {
+	return func(c *Crypto) {
+		c.IvPaddingType = v
+	}
+}
