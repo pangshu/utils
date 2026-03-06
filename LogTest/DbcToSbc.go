@@ -1,4 +1,4 @@
-package Convert
+package LogTest
 
 import (
 	"unicode"
