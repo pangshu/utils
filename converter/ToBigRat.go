@@ -5,13 +5,13 @@ import (
 	"math/big"
 )
 
-// ToBigFloat 将数值类型转换为*big.Float。 / converts numeric types to *big.Float.
-func (c *Converter[T]) ToBigFloat(v T) (*big.Float, error) {
+// ToBigRat converts numeric types to *big.Rat.
+func (c *Converter[T]) ToBigRat(v T) (*big.Rat, error) {
 	if true == c.IsNil(v) {
-		return nil, fmt.Errorf("cannot convert nil to *big.Float")
+		return nil, fmt.Errorf("cannot convert nil to *big.Rat")
 	}
 
-	result := new(big.Float)
+	result := new(big.Rat)
 	switch val := any(v).(type) {
 	case int:
 		result.SetInt64(int64(val))
@@ -46,15 +46,15 @@ func (c *Converter[T]) ToBigFloat(v T) (*big.Float, error) {
 	case []byte:
 		_, ok := result.SetString(string(val))
 		if !ok {
-			return nil, fmt.Errorf("failed to convert []byte to *big.Float: %v", val)
+			return nil, fmt.Errorf("failed to convert []byte to *big.Rat: %v", val)
 		}
 	case string:
 		_, ok := result.SetString(val)
 		if !ok {
-			return nil, fmt.Errorf("failed to convert string to *big.Float: %s", val)
+			return nil, fmt.Errorf("failed to convert string to *big.Rat: %s", val)
 		}
 	default:
-		return nil, fmt.Errorf("unsupported type: %T for ToBigFloat", val)
+		return nil, fmt.Errorf("unsupported type: %T to ToBigRat", val)
 	}
 	return result, nil
 }
